@@ -1,6 +1,15 @@
 # Expense Tracker Redo
 
+![Release Check](https://github.com/bkes994408-cmd/expense-tracker-redo/actions/workflows/release-check.yml/badge.svg)
+
 以 prototype 為唯一 source of truth 的新版實作（**不改動** `expense-tracker-native` 舊專案）。
+
+## TL;DR
+
+- Tech stack：React + TypeScript + Vite + Zustand + Capacitor
+- Current baseline：`npm run release:check` ✅
+- GitHub repo：`https://github.com/bkes994408-cmd/expense-tracker-redo`
+- Goal：把 prototype 穩定收斂成可持續迭代的 iOS / Android app
 
 ## 專案路徑
 
@@ -54,6 +63,27 @@
 - ✅ 既有目標檔案 `@ts-nocheck` 已清除
 
 > 詳細完成度請看 `docs/IMPLEMENTATION_STATUS.md`
+
+## 快速開始
+
+```bash
+cd expense-tracker-redo
+npm install
+npm run dev
+```
+
+打開瀏覽器後即可開始操作；原生殼同步時再使用 Capacitor 指令。
+
+## 常用指令
+
+```bash
+npm run dev
+npm test
+npm run build
+npm run test:e2e:smoke
+npm run release:check
+npm run cap:sync
+```
 
 ## 開發
 
