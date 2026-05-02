@@ -1,0 +1,72 @@
+# Next Phase Plan
+
+最後更新：2026-04-19
+
+這份文件整理 `expense-tracker-redo` 從現在開始的兩條主線，避免下一步分散。
+
+## 路線 A，上架前最後收尾（建議優先）
+
+### A1. 真機 QA
+- Android 真機完整驗收
+- iPhone 真機完整驗收
+- 依 `docs/DEVICE_QA_CHECKLIST.md` 收斂 blocker
+
+### A2. iOS 真機 Signing / Archive
+- Xcode Team / Signing 設定
+- 真機 Run
+- Archive
+- App Store Connect 上傳驗證
+
+### A3. 商店素材與 metadata
+- App icon 定稿
+- 截圖實拍
+- Privacy Policy URL
+- Support / Contact Email
+- Play Console / App Store Connect 必填欄位補齊
+
+### A4. 上傳與送審
+- Android：AAB 上傳 Internal testing / Closed testing
+- iOS：Archive 上傳 App Store Connect
+
+---
+
+## 路線 B，P3 工程品質提升
+
+### B1. 測試再補強
+- Reports 有資料時的真實趨勢測試
+- iOS / Android 端更接近真機的整合驗證
+- 規劃 E2E smoke
+
+### B2. 文件整理
+- 同步更新 `FINAL_DELIVERY_SUMMARY.md`
+- 保持 `HANDOFF_INDEX.md` 與最新產物一致
+- 補開發 / 發佈流程標準化文件
+
+### B3. 版本管理
+- 明確版本號策略（1.0.0 / 1.0.1）
+- Android versionCode / versionName 管理
+- iOS build number / marketing version 管理
+
+---
+
+## 建議順序
+### 若目標是最近就上架
+請先走：
+1. A1 真機 QA
+2. A2 iOS Signing / Archive
+3. A3 商店素材與 metadata
+4. A4 上傳與送審
+
+### 若目標是再磨工程品質
+請先走：
+1. B1 測試再補強
+2. B2 文件整理
+3. B3 版本管理
+
+## 我目前建議
+**先走路線 A。**
+
+原因很簡單，P1 / P2 你要的功能面已經補到夠完整了，現在最有價值的是把它推到：
+- 真機可驗
+- 可上架
+- 可交付

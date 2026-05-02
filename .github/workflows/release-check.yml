@@ -1,0 +1,64 @@
+name: Release Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run release check (JSON)
+        id: release_check
+        shell: bash
+        run: |
+          set +e
+          node scripts/release-check.mjs --json > release-check.json
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          test -f release-check.json || printf '{"summary":{"status":"fail","baselineStatus":"rejected"}}\n' > release-check.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('release-check.json', 'utf8'));
+          const lines = [
+            '## release:check',
+            '',
+            `- status: **${report.summary?.status ?? 'unknown'}**`,
+            `- baseline: **${report.summary?.baselineStatus ?? 'unknown'}**`,
+            `- baseline reason: ${report.baseline?.reason ?? 'unknown'}`,
+            `- version checks: ${report.summary?.versionChecks?.status ?? 'unknown'}`,
+            `- execution checks: ${report.summary?.executionChecks?.status ?? 'unknown'}`,
+            `- skip reasons: ${(report.skipReasons ?? []).join(', ') || '(none)'}`,
+            '',
+            '### execution',
+            ...((report.checks?.execution ?? []).map((check) => `- ${check.id}: ${check.status}${check.skipReason ? ` (${check.skipReason})` : ''}`)),
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+          exit $status
+
+      - name: Upload release-check JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check-json
+          path: release-check.json
+          if-no-files-found: error
