@@ -1,0 +1,13 @@
+# Default owner
+* @bkes994408-cmd
+
+# CI / repo governance
+.github/ @bkes994408-cmd
+
+# Mobile shells
+android/ @bkes994408-cmd
+ios/ @bkes994408-cmd
+
+# App source
+src/ @bkes994408-cmd
+scripts/ @bkes994408-cmd
