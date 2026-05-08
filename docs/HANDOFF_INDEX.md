@@ -1,6 +1,6 @@
 # Handoff Index
 
-最後更新：2026-04-21（P3 第三輪）
+最後更新：2026-05-08（新增更新功能規劃入口）
 
 這份文件是 `expense-tracker-redo` 的單一交付入口，方便快速找到 Android / iOS / 測試 / 發佈相關資料。
 
@@ -68,6 +68,8 @@
 - 版本管理 baseline：`docs/VERSIONING_BASELINE.md`
 - P1/P2 總結：`docs/P1_P2_SUMMARY.md`
 - 下一階段規劃：`docs/NEXT_PHASE_PLAN.md`
+- 更新功能規劃：`docs/UPDATE_FEATURE_PLAN.md`
+- 更新 Roadmap：`docs/UPDATE_ROADMAP.md`
 - 架構：`docs/ARCHITECTURE.md`
 - Roadmap：`docs/REDO_PLAN.md`
 - Prototype breakdown：`docs/PROTOTYPE_BREAKDOWN.md`

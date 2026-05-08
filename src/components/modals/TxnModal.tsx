@@ -5,23 +5,12 @@ import type { Category, RecurringFrequency, ThemeFonts, ThemePalette, ThemeRadii
 import { CAT_ICON, Box, Ico } from '../common/icons';
 import { Chip, Seg, Toggle } from '../common/ui';
 import { evaluateExpression } from '../../utils/expression';
+import { NOTE_PRESETS } from '../../rules/categoryRules';
 import { parseQuickEntry, parseQuickEntryDetailed } from '../../utils/quickEntryParser';
 
 type TxnDraft = Transaction & {
   isRec?: boolean;
   freq?: RecurringFrequency;
-};
-
-const NOTE_PRESETS: Record<Category, string[]> = {
-  餐飲: ['早餐', '午餐', '晚餐', '咖啡', '飲料', '宵夜', '外送', '聚餐'],
-  交通: ['捷運', '公車', '計程車', '停車費', '高鐵', '加油', '過路費', '共享單車'],
-  購物: ['日用品', '服飾', '3C', '家電', '超市', '網購', '禮物', '生活雜貨'],
-  娛樂: ['電影', '遊戲', '串流訂閱', 'KTV', '展覽', '旅遊娛樂', '演唱會', '聚會活動'],
-  帳單: ['電費', '水費', '瓦斯費', '網路費', '手機費', '房租', '管理費', '保險費'],
-  健康: ['看診', '藥品', '保健品', '健身房', '牙科', '物理治療', '健康檢查', '醫療耗材'],
-  教育: ['學費', '線上課程', '書籍', '補習', '證照報名', '教材', '語言學習', '研討會'],
-  其他: ['人情支出', '手續費', '捐款', '罰單', '寵物支出', '家庭支出', '緊急支出', '其他雜支'],
-  收入: ['薪資', '獎金', '兼職', '退款', '投資收益', '利息', '獎學金', '其他收入'],
 };
 
 type TxnModalProps = {
