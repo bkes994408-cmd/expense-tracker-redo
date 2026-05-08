@@ -19,11 +19,13 @@ describe('updateInfo helpers', () => {
     expect(label).toContain('05');
   });
 
-  it('reports current update status when app version matches latest release note', () => {
-    const status = getUpdateStatus({ appVersion: RELEASE_NOTES[0].version });
+  it('reports current update status when app version matches or exceeds latest release note', () => {
+    const sameVersionStatus = getUpdateStatus({ appVersion: RELEASE_NOTES[0].version });
+    const newerVersionStatus = getUpdateStatus({ appVersion: '1.1.0' }, { ...RELEASE_NOTES[0], version: '1.0.0' });
 
-    expect(status.level).toBe('current');
-    expect(status.label).toBe('已是目前版本');
+    expect(sameVersionStatus.level).toBe('current');
+    expect(sameVersionStatus.label).toBe('已是目前版本');
+    expect(newerVersionStatus.level).toBe('current');
   });
 
   it('defines required update behavior without blocking data export', () => {

@@ -725,6 +725,8 @@ describe('interaction', () => {
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('App Store');
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('上架後啟用');
     expect(screen.getAllByText(/尚無本機復原點/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: '知道了' }));
+    expect(screen.queryByRole('dialog', { name: '檢查更新結果' })).not.toBeInTheDocument();
 
     expect(setStyle).toHaveBeenCalled();
     expect(setCurrency).toHaveBeenCalledWith('USD');

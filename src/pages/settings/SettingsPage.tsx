@@ -550,7 +550,16 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               {updatePolicy.secondaryAction && (
                 <button className="press" onClick={() => setUpdateCheckOpen(false)} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{updatePolicy.secondaryAction}</button>
               )}
-              <button className="press" onClick={() => updatePolicy.level === 'optional' ? setReleaseNotesOpen(true) : setUpdateCheckOpen(false)} style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: t.chipActive, color: t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{updatePolicy.primaryAction}</button>
+              <button
+                className="press"
+                onClick={() => {
+                  setUpdateCheckOpen(false);
+                  if (updatePolicy.level === 'optional') setReleaseNotesOpen(true);
+                }}
+                style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: t.chipActive, color: t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                {updatePolicy.primaryAction}
+              </button>
             </div>
           </div>
         </div>

@@ -104,8 +104,22 @@ export function formatDataUpdateTime(date: Date): string {
   });
 }
 
+function compareSemverLike(a: string, b: string): number {
+  const parse = (value: string) => value.split(/[.-]/).map((part) => Number.parseInt(part, 10)).map((part) => (Number.isFinite(part) ? part : 0));
+  const left = parse(a);
+  const right = parse(b);
+  const length = Math.max(left.length, right.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const diff = (left[index] ?? 0) - (right[index] ?? 0);
+    if (diff !== 0) return diff > 0 ? 1 : -1;
+  }
+
+  return 0;
+}
+
 export function getUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, latest = RELEASE_NOTES[0]): { level: UpdateLevel; label: string; detail: string } {
-  if (!latest || versionInfo.appVersion === latest.version) {
+  if (!latest || compareSemverLike(versionInfo.appVersion, latest.version) >= 0) {
     return { level: 'current', label: '已是目前版本', detail: '目前沒有需要安裝的更新。' };
   }
 
