@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Bell, Calendar, ChevronRight, Cloud, Download, Info, LayoutGrid, RotateCcw, Star, Wallet } from 'lucide-react';
+import { Bell, Calendar, ChevronRight, Cloud, Download, FileText, Info, LayoutGrid, RefreshCw, RotateCcw, ShieldCheck, Star, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Ico } from '../../components/common/icons';
 import { RiskNotice, Seg, Toggle } from '../../components/common/ui';
@@ -7,6 +7,10 @@ import type { SettingsPageProps } from '../pageTypes';
 import { getCsvFilename } from '../../utils/csv';
 import { CURRENCY_SYMBOL } from '../../utils/format';
 import { createCurrencyDisplayContext, getDisplayCurrencySemanticHint } from '../../utils/currencyDisplay';
+import { getRuleStatusSummary } from '../../rules/categoryRules';
+import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
+import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
+import { RELEASE_NOTES, STORE_LINKS, createLocalBackupSummary, createVersionInfo, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
 
 type RowProps = {
   C: LucideIcon;
@@ -50,9 +54,23 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [clearArmed, setClearArmed] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
+  const [updateCheckOpen, setUpdateCheckOpen] = useState(false);
   const clearKeyword = 'CLEAR';
   const isClearKeywordMatched = clearConfirmText.trim().toUpperCase() === clearKeyword;
   const currencySemanticHint = getDisplayCurrencySemanticHint(createCurrencyDisplayContext(currency));
+  const versionInfo = useMemo(() => createVersionInfo(), []);
+  const updateStatus = useMemo(() => getUpdateStatus(versionInfo), [versionInfo]);
+  const updatePolicy = useMemo(() => getUpdatePolicy(updateStatus.level), [updateStatus.level]);
+  const storeSummary = useMemo(() => getStoreAvailabilitySummary(STORE_LINKS), []);
+  const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
+  const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
+  const backupStatus = useMemo(() => getMigrationBackupStatus({
+    getItem: (key) => {
+      if (typeof window === 'undefined' || typeof window.localStorage?.getItem !== 'function') return null;
+      return window.localStorage.getItem(key);
+    },
+  }, FINANCE_STORAGE_KEY), []);
 
   const previewCount = useMemo(() => {
     if (exportScope === 'category' && !selectedCategory) return null;
@@ -287,7 +305,40 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
 
       <Sec title="關於" delay={180} t={t} r={r}>
         <Row C={Star} label="評分 App" t={t} r={r} f={f} onClick={onRateApp} right={<Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} />} />
-        <Row C={Info} label="版本" t={t} r={r} f={f} noBorder right={<span style={{ fontSize: '12px', color: t.secondary }}>1.1.0</span>} />
+        <Row C={Info} label="版本資訊" t={t} r={r} f={f} right={<span style={{ fontSize: '12px', color: t.secondary }}>v{versionInfo.appVersion} · build {versionInfo.buildNumber}</span>} />
+        <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>
+          <div aria-label="App版本資訊摘要" style={{ display: 'grid', gap: '5px', fontSize: '11px', color: t.secondary, lineHeight: 1.45 }}>
+            <div>資料 schema：v{versionInfo.schemaVersion}</div>
+            <div>發佈通道：{versionInfo.releaseChannel}</div>
+            <div>資料狀態：{versionInfo.lastDataUpdateLabel}</div>
+          </div>
+        </div>
+        <Row C={FileText} label="更新內容" t={t} r={r} f={f} onClick={() => setReleaseNotesOpen(true)} right={<span style={{ fontSize: '12px', color: t.secondary }}>最近 {RELEASE_NOTES.length} 筆 <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
+        <Row C={RefreshCw} label="檢查更新" t={t} r={r} f={f} onClick={() => setUpdateCheckOpen(true)} right={<span style={{ fontSize: '12px', color: updateStatus.level === 'current' ? t.secondary : t.accent }}>{updateStatus.label} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
+        <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>
+          <RiskNotice ariaLabel="更新安全提醒" title="安全更新策略" body={backupSummary} t={t} r={r} />
+        </div>
+        <Row C={ShieldCheck} label="規則版本" t={t} r={r} f={f} right={<span style={{ fontSize: '12px', color: t.secondary }}>分類 {ruleStatus.categoryRuleVersion}</span>} />
+        <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>
+          <RiskNotice
+            ariaLabel="分類規則版本狀態"
+            title="分類與備註規則"
+            body={`分類規則 ${ruleStatus.categoryRuleVersion}｜備註建議 ${ruleStatus.noteSuggestionRuleVersion}。${ruleStatus.protection}`}
+            t={t}
+            r={r}
+          />
+        </div>
+        <Row C={ShieldCheck} label="更新保護" t={t} r={r} f={f} right={<span style={{ fontSize: '12px', color: backupStatus.exists ? t.accent : t.secondary }}>{backupStatus.label}</span>} />
+        <div style={{ padding: '0 14px 10px 58px' }}>
+          <RiskNotice
+            ariaLabel="本機復原點狀態"
+            title={backupStatus.label}
+            body={`${backupStatus.detail} 使用者仍可隨時匯出 CSV 作為額外安全出口。`}
+            tone={backupStatus.snapshot?.reason === 'corrupted-json' ? 'warn' : 'neutral'}
+            t={t}
+            r={r}
+          />
+        </div>
       </Sec>
 
       {picker && (
@@ -435,6 +486,76 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
           </div>
         </div>
       )}
+
+      {releaseNotesOpen && (
+        <div role="dialog" aria-label="更新內容" style={{ position: 'fixed', inset: 0, background: t.modalOverlay, zIndex: 90, display: 'flex', alignItems: 'flex-end' }} onClick={() => setReleaseNotesOpen(false)}>
+          <div style={{ width: '100%', background: t.surface, borderTopLeftRadius: r.modal, borderTopRightRadius: r.modal, padding: '14px', maxHeight: '76vh', overflowY: 'auto', boxShadow: t.shadow }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: r.icon, background: t.surfaceAlt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico C={FileText} size={16} color={t.accent} sw={1.9} /></div>
+              <div style={{ flex: 1 }}><div style={{ fontSize: '14px', fontWeight: 800, color: t.primary }}>更新內容</div><div style={{ fontSize: '11px', color: t.secondary }}>最近版本重點與資料 migration 說明</div></div>
+              <button className="press" onClick={() => setReleaseNotesOpen(false)} style={{ border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', cursor: 'pointer' }}>關閉</button>
+            </div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {RELEASE_NOTES.map((note) => (
+                <section key={note.version} style={{ borderTop: `1px solid ${t.divider}`, paddingTop: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: t.primary }}>v{note.version}</div>
+                    <div style={{ fontSize: '11px', color: t.secondary }}>{note.date}</div>
+                    <div style={{ marginLeft: 'auto', fontSize: '10px', color: note.level === 'recommended' ? t.accent : t.secondary, border: `1px solid ${t.divider}`, borderRadius: r.chip, padding: '2px 7px' }}>{note.level}</div>
+                  </div>
+                  <div style={{ fontSize: '11px', color: t.primary, lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 700, marginBottom: '2px' }}>重點</div>
+                    <ul style={{ margin: '0 0 6px 18px', padding: 0 }}>{note.highlights.map((item) => <li key={item}>{item}</li>)}</ul>
+                    <div style={{ fontWeight: 700, marginBottom: '2px' }}>修正</div>
+                    <ul style={{ margin: '0 0 0 18px', padding: 0 }}>{note.fixes.map((item) => <li key={item}>{item}</li>)}</ul>
+                    {note.migrationNote && <div style={{ marginTop: '7px', color: t.secondary }}>Migration：{note.migrationNote}</div>}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {updateCheckOpen && (
+        <div role="dialog" aria-label="檢查更新結果" style={{ position: 'fixed', inset: 0, background: t.modalOverlay, zIndex: 90, display: 'flex', alignItems: 'flex-end' }} onClick={() => setUpdateCheckOpen(false)}>
+          <div style={{ width: '100%', background: t.surface, borderTopLeftRadius: r.modal, borderTopRightRadius: r.modal, padding: '14px', boxShadow: t.shadow }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: '14px', fontWeight: 800, color: t.primary, marginBottom: '5px' }}>{updateStatus.label}</div>
+            <div style={{ fontSize: '12px', color: t.secondary, lineHeight: 1.5, marginBottom: '12px' }}>{updateStatus.detail}</div>
+            <div style={{ marginBottom: '12px' }}><RiskNotice ariaLabel="檢查更新限制說明" title="目前是本機檢查" body={`${storeSummary} 現在先提供版本資訊、更新內容與更新前本機保護策略。`} t={t} r={r} /></div>
+            <div aria-label="更新行為策略" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '10px', marginBottom: '12px', background: t.surfaceAlt, fontSize: '11px', lineHeight: 1.5, color: t.secondary }}>
+              <div style={{ color: t.primary, fontWeight: 800, marginBottom: '4px' }}>{updatePolicy.title}</div>
+              <div>{updatePolicy.message}</div>
+              <div style={{ marginTop: '6px' }}>主要操作：{updatePolicy.primaryAction}</div>
+              <div>可稍後處理：{updatePolicy.canPostpone ? '可以' : '不可以'}</div>
+              <div>核心功能可用：{updatePolicy.canUseCoreApp ? '可以' : '限制主要操作'}</div>
+              <div>資料匯出：{updatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
+            </div>
+            <div aria-label="商店更新連結狀態" style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
+              {STORE_LINKS.map((link) => (
+                <div key={link.target} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', fontSize: '11px', color: t.secondary }}>
+                  <span>{link.label}</span>
+                  <span>{link.status === 'ready' ? '已啟用' : '上架後啟用'}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: '7px', fontSize: '11px', color: t.secondary, marginBottom: '12px' }}>
+              <div>目前版本：v{versionInfo.appVersion}</div>
+              <div>Build：{versionInfo.buildNumber}</div>
+              <div>資料 schema：v{versionInfo.schemaVersion}</div>
+              <div>{backupSummary}</div>
+              <div>復原點狀態：{backupStatus.label}</div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {updatePolicy.secondaryAction && (
+                <button className="press" onClick={() => setUpdateCheckOpen(false)} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{updatePolicy.secondaryAction}</button>
+              )}
+              <button className="press" onClick={() => updatePolicy.level === 'optional' ? setReleaseNotesOpen(true) : setUpdateCheckOpen(false)} style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: t.chipActive, color: t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{updatePolicy.primaryAction}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

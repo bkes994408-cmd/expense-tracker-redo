@@ -1,8 +1,12 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import type { BudgetMap, Goal, RecurringItem, Transaction } from '../domain/types';
+import { createMigrationBackupStorage } from './migrationBackupStorage';
 import { safeStorage } from './persistence';
-import { getCleanFinanceState, migrateFinanceState, resolveUpdater, type FinanceSlice } from './financeStoreHelpers';
+import { FINANCE_SCHEMA_VERSION, getCleanFinanceState, migrateFinanceState } from './financeMigrations';
+import { resolveUpdater, type FinanceSlice } from './financeStoreHelpers';
+
+export const FINANCE_STORAGE_KEY = 'expense-tracker-redo-finance';
 
 type FinanceState = FinanceSlice & {
   setTransactions: (updater: Transaction[] | ((prev: Transaction[]) => Transaction[])) => void;
@@ -24,9 +28,9 @@ export function createFinanceStore(storage: StateStorage = safeStorage) {
         resetAllData: () => set(getCleanFinanceState()),
       }),
       {
-        name: 'expense-tracker-redo-finance',
-        version: 5,
-        storage: createJSONStorage(() => storage),
+        name: FINANCE_STORAGE_KEY,
+        version: FINANCE_SCHEMA_VERSION,
+        storage: createJSONStorage(() => createMigrationBackupStorage(storage, FINANCE_STORAGE_KEY, FINANCE_SCHEMA_VERSION)),
         partialize: (state) => ({
           transactions: state.transactions,
           recurring: state.recurring,

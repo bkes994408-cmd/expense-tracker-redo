@@ -713,6 +713,18 @@ describe('interaction', () => {
     fireEvent.change(screen.getByLabelText('清除資料確認字串'), { target: { value: 'CLEAR' } });
     fireEvent.click(screen.getByRole('button', { name: '確認清除所有資料' }));
     fireEvent.click(screen.getByText('評分 App'));
+    fireEvent.click(screen.getByText('更新內容'));
+    expect(screen.getByRole('dialog', { name: '更新內容' })).toBeInTheDocument();
+    expect(screen.getByText('版本資訊中心')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '關閉' }));
+    expect(screen.getByLabelText('分類規則版本狀態')).toHaveTextContent('不覆蓋手動分類');
+    fireEvent.click(screen.getByText('檢查更新'));
+    expect(screen.getByRole('dialog', { name: '檢查更新結果' })).toBeInTheDocument();
+    expect(screen.getByText('目前是本機檢查')).toBeInTheDocument();
+    expect(screen.getByLabelText('更新行為策略')).toHaveTextContent('目前已是最新版本');
+    expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('App Store');
+    expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('上架後啟用');
+    expect(screen.getAllByText(/尚無本機復原點/).length).toBeGreaterThan(0);
 
     expect(setStyle).toHaveBeenCalled();
     expect(setCurrency).toHaveBeenCalledWith('USD');

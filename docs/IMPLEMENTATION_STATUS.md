@@ -1,5 +1,60 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-08（更新功能 U1～U5）
+
+## 0) 本輪完成（Update Feature U1～U5）
+
+### U1. 版本資訊 / Release Notes / 檢查更新 baseline
+- `src/utils/updateInfo.ts`
+  - 新增 App version、build number、data schema version、release channel、release notes 與 update status helpers。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings 顯示版本資訊、更新內容彈窗、檢查更新彈窗。
+  - 明確標示目前商店查詢尚未接入，不假裝可直接更新。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補版本資訊、更新內容與檢查更新互動測試。
+
+### U2. Finance migration registry
+- `src/store/financeMigrations.ts`
+  - 集中管理 `FINANCE_SCHEMA_VERSION = 5` 與 migration registry。
+  - migration report 記錄 reset legacy seed、交易幣別 fallback、recurring 欄位補齊與 warnings。
+- `src/store/financeStore.ts`、`src/store/financeStoreHelpers.ts`
+  - persistence version 改由 registry 單一來源管理。
+- `src/test/financeMigrations.test.ts`、`src/test/financeStore.test.ts`
+  - 補 registry、舊資料 migration 與既有行為保護測試。
+
+### U3 / U3.5. 更新前本機復原點與 recovery status
+- `src/store/migrationBackupStorage.ts`
+  - schema upgrade 前建立 `expense-tracker-redo-finance-migration-backup`。
+  - corrupted JSON 會保存原始 raw data，並讓 App 回復乾淨狀態，避免 hydrate 白屏。
+  - 提供 backup snapshot parse 與 Settings status copy。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings 顯示本機復原點狀態；壞資料恢復時以 warning tone 顯示。
+- `src/test/migrationBackupStorage.test.ts`
+  - 補 schema upgrade backup、corrupted JSON backup、status parse 測試。
+
+### U4. 檢查更新 UX 行為策略
+- `src/utils/updateInfo.ts`
+  - 定義 `current / optional / recommended / required` 更新策略。
+  - required 更新限制主要操作，但資料匯出永遠保留。
+  - App Store / Play Store 先以 placeholder 顯示「上架後啟用」。
+- `src/pages/settings/SettingsPage.tsx`
+  - 檢查更新彈窗顯示更新行為策略、商店連結狀態與復原點狀態。
+
+### U5. 分類規則 / 備註建議版本化
+- `src/rules/categoryRules.ts`
+  - 新增 `CATEGORY_RULE_VERSION = 2026.05.08-u5`。
+  - 新增 `NOTE_SUGGESTION_RULE_VERSION = 2026.05.08-u5`。
+  - 集中管理 merchant/category keywords 與 note presets。
+  - `shouldApplyRuleCategory()` 保護使用者手動分類，不讓系統規則覆蓋。
+- `src/utils/quickEntryParser.ts`、`src/components/modals/TxnModal.tsx`
+  - quick entry 分類與 note presets 改用 versioned rules。
+- `src/test/categoryRules.test.ts`
+  - 補規則版本、分類偵測與手動分類保護測試。
+
+### 驗證
+- `npm test` ✅ 21 files / 137 tests passed
+- `npm run build` ✅ passed
+
 最後更新：2026-04-24（L2-1a 顯示層多幣別 baseline 第三輪）
 
 ## 0) 本輪完成（L2-1a：顯示層多幣別 baseline 第三輪）

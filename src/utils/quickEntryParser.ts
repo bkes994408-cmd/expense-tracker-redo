@@ -1,4 +1,5 @@
 import type { Category, Transaction } from '../domain/types';
+import { detectCategoryByRules } from '../rules/categoryRules';
 
 type CurrencyCode = NonNullable<Transaction['originalCurrency']>;
 
@@ -29,28 +30,6 @@ export type QuickEntryDetailedParseResult =
       reason: QuickEntryParseFailureReason;
       message: string;
     };
-
-const MERCHANT_CATEGORY_RULES: Array<{ cat: Category; keywords: string[] }> = [
-  { cat: '餐飲', keywords: ['uber eats', 'foodpanda', '星巴克', 'starbucks', '路易莎', 'louisa', '麥當勞', 'mcdonald', '肯德基', 'kfc', '摩斯', 'mos burger', 'cama', '50嵐', '可不可', '八方雲集'] },
-  { cat: '交通', keywords: ['uber', 'taxi', '計程車', '台鐵', '高鐵', '捷運', '公車', 'youbike'] },
-  { cat: '購物', keywords: ['全聯', '家樂福', 'costco', '小北', '蝦皮', 'shopee', 'momo', 'pchome', '7-11', '7 eleven', 'seven eleven', '全家', 'familymart', '康是美', '屈臣氏'] },
-  { cat: '娛樂', keywords: ['netflix', 'spotify', 'steam', 'disney+', 'playstation', 'xbox'] },
-  { cat: '帳單', keywords: ['中華電信', '台灣大哥大', '遠傳', '國泰世華', '玉山銀行', '台新銀行', '水費', '電費'] },
-  { cat: '健康', keywords: ['診所', '醫院', '牙醫', '藥局', '屈臣氏藥局'] },
-  { cat: '收入', keywords: ['薪轉', '股利', '退款', '回饋', 'cashback'] },
-];
-
-const CATEGORY_KEYWORDS: Record<Category, string[]> = {
-  餐飲: ['餐飲', '早餐', '午餐', '晚餐', '咖啡', '飲料', '宵夜', '外送', '星巴克', 'coffee', 'brunch', 'lunch', 'dinner', 'breakfast', 'tea', '麥當勞', '肯德基', '早餐店', '便當', '餐盒', '奶茶'],
-  交通: ['交通', '捷運', '公車', 'uber', 'taxi', '計程車', '高鐵', '停車', '加油', '火車', '車票', '機票', '過路費', 'youbike', '打車'],
-  購物: ['購物', '網購', '超市', '日用品', '服飾', '3c', '家電', 'costco', '全聯', '家樂福', '蝦皮', 'momo', 'pchome', '便利商店', '超商', '7-11', '全家'],
-  娛樂: ['娛樂', '電影', '遊戲', 'netflix', 'spotify', '串流', '演唱會', 'ktv', 'steam', 'disney+', 'youtube premium', 'ps5', 'switch'],
-  帳單: ['帳單', '房租', '租金', '電費', '水費', '瓦斯', '網路費', '手機費', '保險', '管理費', '卡費', 'credit card', '月費', '訂閱費'],
-  健康: ['健康', '看診', '藥', '藥局', '健身房', '牙醫', '醫院', '診所', '維他命', '保健品'],
-  教育: ['教育', '學費', '書', '課程', '補習', '證照', '講座', '英文課', '線上課程', '教材'],
-  其他: ['其他', '雜支', '手續費', '捐款'],
-  收入: ['收入', '薪水', '薪資', '獎金', '退款', '回饋', '利息', '股利', '報酬', 'income', 'bonus', 'salary', 'cashback', 'refund'],
-};
 
 const EXPENSE_HINTS = ['花', '買', '支付', '支出', '付款', '刷卡', '扣款'];
 const INCOME_HINTS = ['收入', '入帳', '收到', '薪水', '薪資', '獎金', '退款', '回饋', '匯入'];
@@ -117,27 +96,8 @@ function parseAmountToken(token: string): ParsedAmountToken | null {
   };
 }
 
-function detectMerchantCategory(text: string): { cat: Category; explicit: boolean } | null {
-  const lowered = text.toLowerCase();
-  for (const rule of MERCHANT_CATEGORY_RULES) {
-    if (rule.keywords.some((keyword) => lowered.includes(keyword.toLowerCase()))) {
-      return { cat: rule.cat, explicit: true };
-    }
-  }
-  return null;
-}
-
 function detectCategory(text: string): { cat: Category; explicit: boolean } {
-  const merchantMatch = detectMerchantCategory(text);
-  if (merchantMatch) return merchantMatch;
-
-  const lowered = text.toLowerCase();
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS) as [Category, string[]][]) {
-    if (keywords.some((keyword) => lowered.includes(keyword.toLowerCase()))) {
-      return { cat, explicit: true };
-    }
-  }
-  return { cat: '其他', explicit: false };
+  return detectCategoryByRules(text);
 }
 
 function detectType(name: string, category: Category, signedType?: 'income' | 'expense'): 'income' | 'expense' {

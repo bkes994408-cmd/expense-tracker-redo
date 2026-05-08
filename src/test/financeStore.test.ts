@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { StateStorage } from 'zustand/middleware';
 import { INITIAL_BUDGETS, INITIAL_GOALS, INITIAL_RECURRING, INITIAL_TRANSACTIONS } from '../domain/initialData';
 import { createFinanceStore } from '../store/financeStore';
+import { getMigrationBackupKey, type MigrationBackupSnapshot } from '../store/migrationBackupStorage';
 
 const STORAGE_KEY = 'expense-tracker-redo-finance';
 
@@ -107,6 +108,45 @@ describe('financeStore persistence/DI', () => {
     };
     expect(parsed.state.budgets.交通).toBe(2468);
     expect(parsed.state.goals[0].name).toBe('updated goal');
+  });
+
+  it('migration 前會建立本機備份 snapshot', async () => {
+    const rawState = {
+      transactions: [{ id: 77, name: 'legacy txn', cat: '餐飲', amount: -80, date: '2026-04-01', time: '08:00' }],
+      recurring: [],
+      goals: [],
+      budgets: { ...INITIAL_BUDGETS },
+    };
+    const raw = JSON.stringify({ state: rawState, version: 4 });
+    const storage = createMockStorage({ [STORAGE_KEY]: raw });
+
+    const store = createFinanceStore(storage);
+    await store.persist.rehydrate();
+
+    const backupRaw = storage.getItem(getMigrationBackupKey(STORAGE_KEY));
+    expect(backupRaw).toBeTruthy();
+    const backup = JSON.parse(backupRaw as string) as MigrationBackupSnapshot;
+    expect(backup.reason).toBe('schema-upgrade');
+    expect(backup.fromVersion).toBe(4);
+    expect(backup.toVersion).toBe(5);
+    expect(backup.raw).toBe(raw);
+  });
+
+  it('corrupted persisted JSON 會備份並回復乾淨狀態，不讓 hydrate 失敗', async () => {
+    const storage = createMockStorage({ [STORAGE_KEY]: '{broken json' });
+
+    const store = createFinanceStore(storage);
+    await store.persist.rehydrate();
+
+    const state = store.getState();
+    expect(state.transactions).toEqual(INITIAL_TRANSACTIONS);
+    expect(state.recurring).toEqual(INITIAL_RECURRING);
+
+    const backupRaw = storage.getItem(getMigrationBackupKey(STORAGE_KEY));
+    expect(backupRaw).toBeTruthy();
+    const backup = JSON.parse(backupRaw as string) as MigrationBackupSnapshot;
+    expect(backup.reason).toBe('corrupted-json');
+    expect(backup.raw).toBe('{broken json');
   });
 
   it('舊版 demo seed persistence 會在 migration 清空', async () => {
