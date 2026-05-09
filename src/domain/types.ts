@@ -12,6 +12,7 @@ export type ExpenseCategory =
   | '其他';
 
 export type Category = ExpenseCategory | '收入';
+export type CategorySource = 'system' | 'user';
 
 export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type RecurringAutoPostMode = 'off' | 'on' | 'confirm';
@@ -29,6 +30,8 @@ export type Transaction = {
   date: string;
   time: string;
   originalCurrency?: CurrencyCode;
+  categorySource?: CategorySource;
+  categoryRuleVersion?: string;
 };
 
 export type RecurringItem = {

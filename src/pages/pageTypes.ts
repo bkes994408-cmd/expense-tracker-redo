@@ -1,6 +1,7 @@
 import type { AppTab } from '../store/appStore';
 import type { BudgetMap, Goal, RecurringConfirmDateStrategy, RecurringItem, ThemeFonts, ThemePalette, ThemeRadii, ThemeStyle, Transaction } from '../domain/types';
 import type { DisplayCurrency } from '../utils/format';
+import type { CategoryRuleReapplyResult } from '../rules/categoryRules';
 
 export type CsvExportScope = 'month' | 'all' | 'category';
 
@@ -40,6 +41,7 @@ export type TransactionsPageProps = ThemedProps & {
   currency: DisplayCurrency;
   onEdit: (tx: Transaction) => void;
   onDelete: (id: number) => void;
+  onReapplyCategoryRules?: (ids: number[]) => CategoryRuleReapplyResult;
   onRecChange: (id: number, active: boolean) => void;
   onRecBatchResult?: (result: { action: 'enable' | 'disable' | 'confirm-pending' | 'skip-pending'; affected: number; target: number; names?: string[] }) => void;
   onRecSave: (id: number, patch: Partial<RecurringItem>) => void;

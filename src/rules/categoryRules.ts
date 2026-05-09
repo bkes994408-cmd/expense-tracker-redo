@@ -1,15 +1,25 @@
-import type { Category } from '../domain/types';
+import type { Category, CategorySource, Transaction } from '../domain/types';
 
 export const CATEGORY_RULE_VERSION = '2026.05.08-u5';
 export const NOTE_SUGGESTION_RULE_VERSION = '2026.05.08-u5';
 
-export type RuleSource = 'system' | 'user';
+export type RuleSource = CategorySource;
 
 export type CategoryRuleMatch = {
   cat: Category;
   explicit: boolean;
   source: RuleSource;
   ruleVersion: string;
+};
+
+export type CategoryRuleReapplyResult = {
+  scanned: number;
+  eligible: number;
+  changed: number;
+  unchanged: number;
+  skippedManual: number;
+  changedNames: string[];
+  transactions: Transaction[];
 };
 
 export const MERCHANT_CATEGORY_RULES: Array<{ cat: Category; keywords: string[] }> = [
@@ -71,7 +81,54 @@ export function detectCategoryByRules(text: string): CategoryRuleMatch {
 
 export function shouldApplyRuleCategory(existing: { cat?: Category; categorySource?: RuleSource } | null | undefined): boolean {
   if (!existing?.cat) return true;
-  return existing.categorySource !== 'user';
+  return existing.categorySource === 'system';
+}
+
+export function detectTransactionCategoryByRules(tx: Pick<Transaction, 'name' | 'amount'>): CategoryRuleMatch {
+  const match = detectCategoryByRules(tx.name);
+  if (tx.amount > 0 && !match.explicit) {
+    return { cat: '收入', explicit: false, source: 'system', ruleVersion: CATEGORY_RULE_VERSION };
+  }
+  return match;
+}
+
+export function reapplyCategoryRulesToTransactions(transactions: Transaction[], targetIds?: number[]): CategoryRuleReapplyResult {
+  const targetSet = targetIds ? new Set(targetIds) : null;
+  const changedNames: string[] = [];
+  let scanned = 0;
+  let eligible = 0;
+  let changed = 0;
+  let unchanged = 0;
+  let skippedManual = 0;
+
+  const nextTransactions = transactions.map((tx) => {
+    if (targetSet && !targetSet.has(tx.id)) return tx;
+    scanned += 1;
+
+    if (!shouldApplyRuleCategory(tx)) {
+      skippedManual += 1;
+      return tx;
+    }
+
+    eligible += 1;
+    const match = detectTransactionCategoryByRules(tx);
+    const hasChanged = tx.cat !== match.cat || tx.categorySource !== match.source || tx.categoryRuleVersion !== match.ruleVersion;
+    if (!hasChanged) {
+      unchanged += 1;
+      return tx;
+    }
+
+    changed += 1;
+    changedNames.push(tx.name);
+    return {
+      ...tx,
+      cat: match.cat,
+      categorySource: match.source,
+      categoryRuleVersion: match.ruleVersion,
+    };
+  });
+
+  return { scanned, eligible, changed, unchanged, skippedManual, changedNames, transactions: nextTransactions };
 }
 
 export function getRuleStatusSummary() {

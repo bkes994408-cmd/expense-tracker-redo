@@ -1,5 +1,5 @@
 import type { Category, Transaction } from '../domain/types';
-import { detectCategoryByRules } from '../rules/categoryRules';
+import { CATEGORY_RULE_VERSION, detectCategoryByRules } from '../rules/categoryRules';
 
 type CurrencyCode = NonNullable<Transaction['originalCurrency']>;
 
@@ -16,6 +16,8 @@ export type QuickEntryParseResult = {
   type: 'income' | 'expense';
   matchedCategoryExplicitly: boolean;
   originalCurrency?: CurrencyCode;
+  categorySource: 'system';
+  categoryRuleVersion: string;
 };
 
 export type QuickEntryParseFailureReason = 'empty' | 'missing-amount' | 'invalid-amount' | 'missing-name';
@@ -96,7 +98,7 @@ function parseAmountToken(token: string): ParsedAmountToken | null {
   };
 }
 
-function detectCategory(text: string): { cat: Category; explicit: boolean } {
+function detectCategory(text: string): ReturnType<typeof detectCategoryByRules> {
   return detectCategoryByRules(text);
 }
 
@@ -149,7 +151,7 @@ export function parseQuickEntryDetailed(input: string): QuickEntryDetailedParseR
   const remaining = remainingTokens.join(' ').trim();
   const signedType = parsedAmount.sign < 0 ? 'expense' : undefined;
 
-  const explicitCategory = afterAmount.length > 0 ? detectCategory(afterAmount.join(' ')) : { cat: '其他' as Category, explicit: false };
+  const explicitCategory = afterAmount.length > 0 ? detectCategory(afterAmount.join(' ')) : { cat: '其他' as Category, explicit: false, source: 'system' as const, ruleVersion: CATEGORY_RULE_VERSION };
   const inferredCategory = explicitCategory.explicit ? explicitCategory : detectCategory(remaining);
 
   let name = remaining;
@@ -187,6 +189,8 @@ export function parseQuickEntryDetailed(input: string): QuickEntryDetailedParseR
       type,
       matchedCategoryExplicitly: explicitCategory.explicit || inferredCategory.explicit,
       originalCurrency,
+      categorySource: 'system',
+      categoryRuleVersion: inferredCategory.ruleVersion,
     },
   };
 }

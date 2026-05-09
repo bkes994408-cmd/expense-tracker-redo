@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, SortAsc, SortDesc } from 'lucide-react';
+import { RefreshCw, Search, SortAsc, SortDesc } from 'lucide-react';
 import { CATS } from '../../domain/constants';
 import { fmtD, groupByDate } from '../../utils/format';
 import type { DisplayCurrency } from '../../utils/format';
 import { Ico } from '../../components/common/icons';
 import { Chip } from '../../components/common/ui';
 import type { ThemeFonts, ThemePalette, ThemeRadii, Transaction } from '../../domain/types';
+import { CATEGORY_RULE_VERSION, shouldApplyRuleCategory, type CategoryRuleReapplyResult } from '../../rules/categoryRules';
 import { TxnRow } from './TxnRow';
 
 type RecordsTabProps = {
@@ -16,18 +17,20 @@ type RecordsTabProps = {
   f: ThemeFonts;
   onEdit: (tx: Transaction) => void;
   onDelete: (id: number) => void;
+  onReapplyCategoryRules?: (ids: number[]) => CategoryRuleReapplyResult;
 };
 
 type SortKey = 'date' | 'amount' | 'name';
 type SortDir = 'asc' | 'desc';
 
-export function RecordsTab({ txns, currency, t, r, f, onEdit, onDelete }: RecordsTabProps) {
+export function RecordsTab({ txns, currency, t, r, f, onEdit, onDelete, onReapplyCategoryRules }: RecordsTabProps) {
   const [cat, setCat] = useState('全部');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showSearch, setShowSearch] = useState(false);
   const [openRowId, setOpenRowId] = useState<number | null>(null);
+  const [ruleRefreshSummary, setRuleRefreshSummary] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
   const catList = ['全部', ...CATS, '收入'];
@@ -50,6 +53,7 @@ export function RecordsTab({ txns, currency, t, r, f, onEdit, onDelete }: Record
   }, [txns, cat, q, sort, sortDir]);
 
   const activeOpenRowId = openRowId !== null && filtered.some((tx) => tx.id === openRowId) ? openRowId : null;
+  const eligibleRuleRefreshCount = filtered.filter((tx) => shouldApplyRuleCategory(tx)).length;
   const grouped = groupByDate(filtered);
 
   const toggleSort = (s: SortKey) => {
@@ -93,6 +97,41 @@ export function RecordsTab({ txns, currency, t, r, f, onEdit, onDelete }: Record
           </button>
         ))}
       </div>
+
+
+      {onReapplyCategoryRules && (
+        <div aria-label="分類規則重新套用區" style={{ margin: '8px 14px 0', border: `1px solid ${t.divider}`, borderRadius: r.input, background: t.surfaceAlt, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: t.primary, marginBottom: '3px' }}>分類規則 {CATEGORY_RULE_VERSION}</div>
+              <div style={{ fontSize: '11px', color: t.secondary, lineHeight: 1.45 }}>
+                目前篩選 {filtered.length} 筆，可重新套用 {eligibleRuleRefreshCount} 筆；手動分類不會被覆蓋。
+              </div>
+            </div>
+            <button
+              className="press"
+              aria-label="重新套用分類規則"
+              disabled={eligibleRuleRefreshCount === 0}
+              onClick={() => {
+                const result = onReapplyCategoryRules(filtered.map((tx) => tx.id));
+                const names = result.changedNames.length > 0 ? `：${result.changedNames.slice(0, 3).join('、')}${result.changedNames.length > 3 ? '…' : ''}` : '';
+                const summary = result.eligible === 0
+                  ? `沒有可重新套用的交易，已保護 ${result.skippedManual} 筆手動分類。`
+                  : result.changed === 0
+                    ? `分類已符合目前規則（0/${result.eligible} 筆變更）。`
+                    : `已更新 ${result.changed}/${result.eligible} 筆${names}`;
+                setRuleRefreshSummary(summary);
+                setOpenRowId(null);
+              }}
+              style={{ border: 'none', borderRadius: r.chip, padding: '7px 9px', background: eligibleRuleRefreshCount === 0 ? t.surface : t.chipActive, color: eligibleRuleRefreshCount === 0 ? t.secondary : t.chipActiveText, fontSize: '11px', fontWeight: 800, cursor: eligibleRuleRefreshCount === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+            >
+              <Ico C={RefreshCw} size={12} color={eligibleRuleRefreshCount === 0 ? t.secondary : t.chipActiveText} sw={2} />
+              重新套用
+            </button>
+          </div>
+          {ruleRefreshSummary && <div aria-label="分類規則重新套用結果" style={{ marginTop: '7px', fontSize: '11px', color: t.secondary, lineHeight: 1.45 }}>{ruleRefreshSummary}</div>}
+        </div>
+      )}
 
       <div aria-label="交易列表區域" onClick={(e) => {
         if (e.target === e.currentTarget) setOpenRowId(null);

@@ -1,5 +1,29 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-09（更新功能 U7）
+
+## 0) 本輪完成（Update Feature U7：主動重新套用分類規則）
+
+### U7. 分類規則批次重新套用
+- `src/domain/types.ts`
+  - `Transaction` 新增 `categorySource` 與 `categoryRuleVersion`，用來區分系統分類與使用者手動分類。
+- `src/rules/categoryRules.ts`
+  - 新增 `reapplyCategoryRulesToTransactions()`，只會重新套用 `categorySource=system` 的交易。
+  - 舊資料或手動分類預設視為受保護，不會被批次覆蓋。
+- `src/pages/transactions/RecordsTab.tsx`、`src/app/App.tsx`
+  - 記錄頁新增「重新套用分類規則」區塊，依目前篩選範圍操作，並回報更新筆數與受保護筆數。
+- `src/utils/quickEntryParser.ts`、`src/components/modals/TxnModal.tsx`
+  - Quick Entry 建立的分類會標記為系統分類；手動/計算機輸入維持使用者分類。
+- `src/test/categoryRules.test.ts`、`src/test/interaction.test.tsx`
+  - 補批次重新套用、手動分類保護與 UI 互動測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 21 files / 140 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-09（更新功能 U6）
 
 ## 0) 本輪完成（Update Feature U6：更新診斷匯出）

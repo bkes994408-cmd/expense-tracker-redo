@@ -7,7 +7,7 @@ import type { TransactionsPageProps } from '../pageTypes';
 import { RecordsTab } from './RecordsTab';
 import { RecurringTab } from './RecurringTab';
 
-export function TransactionsPage({ txns, recurring, currency, t, r, f, onEdit, onDelete, onRecChange, onRecBatchResult, onRecSave, onRecDelete, onRecConfirmPending, onRecSkipPending, month, setMonth }: TransactionsPageProps) {
+export function TransactionsPage({ txns, recurring, currency, t, r, f, onEdit, onDelete, onReapplyCategoryRules, onRecChange, onRecBatchResult, onRecSave, onRecDelete, onRecConfirmPending, onRecSkipPending, month, setMonth }: TransactionsPageProps) {
   const [tab, setTab] = useState<'records' | 'recurring'>('records');
 
   return (
@@ -27,7 +27,7 @@ export function TransactionsPage({ txns, recurring, currency, t, r, f, onEdit, o
       </div>
 
       {tab === 'records' ? (
-        <RecordsTab txns={txns} currency={currency} t={t} r={r} f={f} onEdit={onEdit} onDelete={onDelete} />
+        <RecordsTab txns={txns} currency={currency} t={t} r={r} f={f} onEdit={onEdit} onDelete={onDelete} onReapplyCategoryRules={onReapplyCategoryRules} />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px 80px' }}>
           <RecurringTab recurring={recurring} currency={currency} t={t} r={r} f={f} onChange={onRecChange} onBatchResult={onRecBatchResult} onSave={onRecSave} onDelete={onRecDelete} onConfirmPending={onRecConfirmPending} onSkipPending={onRecSkipPending} />
