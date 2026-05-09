@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Bell, Calendar, ChevronRight, Cloud, Download, FileText, Info, LayoutGrid, RefreshCw, RotateCcw, ShieldCheck, Star, Wallet } from 'lucide-react';
+import { Bell, Calendar, ChevronRight, Cloud, Database, Download, FileText, Info, LayoutGrid, RefreshCw, RotateCcw, ShieldCheck, Star, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Ico } from '../../components/common/icons';
 import { RiskNotice, Seg, Toggle } from '../../components/common/ui';
@@ -11,6 +11,7 @@ import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
 import { RELEASE_NOTES, STORE_LINKS, createLocalBackupSummary, createUpdateDiagnosticsText, createVersionInfo, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
   C: LucideIcon;
@@ -81,6 +82,13 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
   }), [backupStatus.detail, backupStatus.label, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, updatePolicy, updateStatus, versionInfo]);
+  const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
+  const syncStatus = useMemo(() => createSyncStatusSummary({
+    localTransactionCount: allTransactionCount,
+    lastCsvExport,
+    iCloudBackup,
+    backupStatus,
+  }), [allTransactionCount, backupStatus, iCloudBackup, lastCsvExport]);
 
   const previewCount = useMemo(() => {
     if (exportScope === 'category' && !selectedCategory) return null;
@@ -313,7 +321,62 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
         <Row C={RotateCcw} label="清除所有資料" t={t} r={r} f={f} noBorder onClick={() => { setClearConfirmOpen(true); setClearArmed(false); setClearConfirmText(''); }} right={<Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} />} />
       </Sec>
 
-      <Sec title="關於" delay={180} t={t} r={r}>
+
+      <Sec title="同步狀態" delay={180} t={t} r={r}>
+        <div aria-label="同步狀態中心" style={{ padding: '12px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: r.icon, background: t.surfaceAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Ico C={Database} size={16} color={t.accent} sw={1.75} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: t.primary, fontFamily: f.body, marginBottom: '4px' }}>{syncStatus.headline}</div>
+              <div style={{ fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>{syncStatus.detail}</div>
+            </div>
+          </div>
+
+          <div aria-label="同步狀態項目" style={{ display: 'grid', gap: '7px', marginTop: '10px' }}>
+            {syncStatus.items.map((item) => {
+              const toneColor = item.tone === 'ok' ? t.positive : item.tone === 'warn' ? t.warn : t.secondary;
+              return (
+                <div key={item.id} style={{ borderTop: `1px solid ${t.divider}`, paddingTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'baseline', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: t.primary }}>{item.label}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: toneColor, textAlign: 'right' }}>{item.value}</span>
+                  </div>
+                  <div style={{ fontSize: '10px', color: t.secondary, lineHeight: 1.45 }}>{item.detail}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: '10px' }}>
+            <RiskNotice
+              ariaLabel="同步狀態提醒"
+              title="同步限制"
+              body="目前沒有真正的雲端同步；若要換機或送審前備份，請優先使用 CSV 匯出與本機復原點資訊。"
+              tone="warn"
+              t={t}
+              r={r}
+            />
+          </div>
+
+          <button
+            className="press"
+            aria-label="複製同步狀態"
+            onClick={() => copyText('同步狀態', syncStatus.copyText)}
+            style={{ marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+          >
+            複製同步狀態
+          </button>
+          {copyFeedback && (
+            <div aria-label="同步狀態複製回饋" style={{ marginTop: '6px', fontSize: '11px', color: t.secondary }}>
+              {copyFeedback}
+            </div>
+          )}
+        </div>
+      </Sec>
+
+      <Sec title="關於" delay={240} t={t} r={r}>
         <Row C={Star} label="評分 App" t={t} r={r} f={f} onClick={onRateApp} right={<Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} />} />
         <Row C={Info} label="版本資訊" t={t} r={r} f={f} right={<span style={{ fontSize: '12px', color: t.secondary }}>v{versionInfo.appVersion} · build {versionInfo.buildNumber}</span>} />
         <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>

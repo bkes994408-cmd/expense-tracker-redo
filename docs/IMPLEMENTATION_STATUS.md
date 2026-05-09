@@ -1,5 +1,26 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U8）
+
+## 0) 本輪完成（Update Feature U8：同步狀態中心）
+
+### U8. Settings 同步狀態中心
+- `src/utils/syncStatus.ts`
+  - 新增 `createSyncStatusSummary()`，集中產生本機資料、CSV 匯出、本機復原點與雲端同步狀態。
+  - 明確標示 iCloud 開關只代表本機狀態，不代表已上傳或可跨裝置同步。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings 新增「同步狀態」區塊，顯示本機交易筆數、最近 CSV 匯出、本機復原點與雲端同步限制。
+  - 新增「複製同步狀態」按鈕，方便 QA / 換機 / 回報問題時交接。
+- `src/test/syncStatus.test.ts`、`src/test/interaction.test.tsx`
+  - 補同步狀態 helper 與 Settings UI 互動測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 22 files / 142 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-09（更新功能 U7）
 
 ## 0) 本輪完成（Update Feature U7：主動重新套用分類規則）
