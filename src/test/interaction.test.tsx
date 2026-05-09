@@ -775,6 +775,8 @@ describe('interaction', () => {
     expect(screen.getByRole('dialog', { name: '檢查更新結果' })).toBeInTheDocument();
     expect(screen.getByText('目前是本機檢查')).toBeInTheDocument();
     expect(screen.getByLabelText('更新行為策略')).toHaveTextContent('目前已是最新版本');
+    expect(screen.getByLabelText('遠端更新來源狀態')).toHaveTextContent('遠端版本 manifest');
+    expect(screen.getByLabelText('遠端更新來源狀態')).toHaveTextContent('未設定');
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('App Store');
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('上架後啟用');
     expect(screen.getAllByText(/尚無本機復原點/).length).toBeGreaterThan(0);

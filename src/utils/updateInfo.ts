@@ -19,6 +19,19 @@ export type VersionInfo = {
 
 export type StoreTarget = 'appStore' | 'playStore';
 
+export type UpdateManifestSource = {
+  status: 'placeholder' | 'ready';
+  envKey: 'VITE_UPDATE_MANIFEST_URL';
+  url?: string;
+};
+
+export type RemoteUpdateManifest = {
+  latestVersion: string;
+  minimumSupportedVersion?: string;
+  level?: Exclude<UpdateLevel, 'current'>;
+  message?: string;
+};
+
 export type StoreLink = {
   target: StoreTarget;
   label: string;
@@ -43,6 +56,7 @@ export type UpdateDiagnosticsInput = {
   updateStatus: { level: UpdateLevel; label: string; detail: string };
   updatePolicy: UpdatePolicy;
   storeSummary: string;
+  updateManifestSummary?: string;
   backupStatusLabel: string;
   backupStatusDetail: string;
   categoryRuleVersion: string;
@@ -50,6 +64,7 @@ export type UpdateDiagnosticsInput = {
 };
 
 export const DATA_SCHEMA_VERSION = 5;
+export const UPDATE_MANIFEST_ENV_KEY = 'VITE_UPDATE_MANIFEST_URL' as const;
 
 export type StoreLinkEnv = Partial<Record<string, string | undefined>>;
 
@@ -58,7 +73,7 @@ export const STORE_LINK_CONFIG: Array<Pick<StoreLink, 'target' | 'label' | 'envK
   { target: 'playStore', label: 'Play Store', envKey: 'VITE_PLAY_STORE_URL' },
 ];
 
-export function normalizeStoreUrl(rawUrl: string | undefined): string | undefined {
+export function normalizeHttpsUrl(rawUrl: string | undefined): string | undefined {
   const value = rawUrl?.trim();
   if (!value) return undefined;
 
@@ -69,6 +84,14 @@ export function normalizeStoreUrl(rawUrl: string | undefined): string | undefine
   } catch {
     return undefined;
   }
+}
+
+export function normalizeStoreUrl(rawUrl: string | undefined): string | undefined {
+  return normalizeHttpsUrl(rawUrl);
+}
+
+export function normalizeUpdateManifestUrl(rawUrl: string | undefined): string | undefined {
+  return normalizeHttpsUrl(rawUrl);
 }
 
 export function createStoreLinks(env: StoreLinkEnv = import.meta.env as unknown as StoreLinkEnv): StoreLink[] {
@@ -83,6 +106,20 @@ export function createStoreLinks(env: StoreLinkEnv = import.meta.env as unknown 
 }
 
 export const STORE_LINKS: StoreLink[] = createStoreLinks();
+
+export function createUpdateManifestSource(env: StoreLinkEnv = import.meta.env as unknown as StoreLinkEnv): UpdateManifestSource {
+  const url = normalizeUpdateManifestUrl(env[UPDATE_MANIFEST_ENV_KEY]);
+  return {
+    status: url ? 'ready' : 'placeholder',
+    envKey: UPDATE_MANIFEST_ENV_KEY,
+    url,
+  };
+}
+
+export function getUpdateManifestAvailabilitySummary(source = createUpdateManifestSource()): string {
+  if (source.status === 'ready') return `遠端版本 manifest 已設定：${source.envKey}`;
+  return `遠端版本 manifest 尚未設定（${source.envKey}），目前使用本機 release notes 判定。`;
+}
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
@@ -158,22 +195,47 @@ function compareSemverLike(a: string, b: string): number {
   return 0;
 }
 
+function getUpdateLabel(level: Exclude<UpdateLevel, 'current'>): string {
+  return level === 'required'
+    ? '需要更新'
+    : level === 'recommended'
+      ? '建議更新'
+      : '可選更新';
+}
+
 export function getUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, latest = RELEASE_NOTES[0]): { level: UpdateLevel; label: string; detail: string } {
   if (!latest || compareSemverLike(versionInfo.appVersion, latest.version) >= 0) {
     return { level: 'current', label: '已是目前版本', detail: '目前沒有需要安裝的更新。' };
   }
 
-  const label = latest.level === 'required'
-    ? '需要更新'
-    : latest.level === 'recommended'
-      ? '建議更新'
-      : '可選更新';
-
   return {
     level: latest.level,
-    label,
+    label: getUpdateLabel(latest.level),
     detail: `目前版本 ${versionInfo.appVersion}，最新版本 ${latest.version}。`,
   };
+}
+
+export function getManifestUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, manifest?: RemoteUpdateManifest): { level: UpdateLevel; label: string; detail: string } {
+  if (!manifest) return getUpdateStatus(versionInfo);
+
+  if (manifest.minimumSupportedVersion && compareSemverLike(versionInfo.appVersion, manifest.minimumSupportedVersion) < 0) {
+    return {
+      level: 'required',
+      label: getUpdateLabel('required'),
+      detail: `目前版本 ${versionInfo.appVersion} 低於最低支援版本 ${manifest.minimumSupportedVersion}。${manifest.message ? ` ${manifest.message}` : ''}`,
+    };
+  }
+
+  if (compareSemverLike(versionInfo.appVersion, manifest.latestVersion) < 0) {
+    const level = manifest.level ?? 'recommended';
+    return {
+      level,
+      label: getUpdateLabel(level),
+      detail: `目前版本 ${versionInfo.appVersion}，遠端最新版本 ${manifest.latestVersion}。${manifest.message ? ` ${manifest.message}` : ''}`,
+    };
+  }
+
+  return { level: 'current', label: '已是目前版本', detail: `目前版本 ${versionInfo.appVersion} 已符合遠端最新版本 ${manifest.latestVersion}。` };
 }
 
 export function getUpdatePolicy(level: UpdateLevel): UpdatePolicy {
@@ -242,7 +304,7 @@ export function createLocalBackupSummary(versionInfo: VersionInfo): string {
 }
 
 export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): string {
-  const { versionInfo, updateStatus, updatePolicy, storeSummary, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
+  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
 
   return [
     'Expense Tracker Redo 更新診斷',
@@ -257,6 +319,7 @@ export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): stri
     `Core app usable: ${updatePolicy.canUseCoreApp ? 'yes' : 'limited'}`,
     `Export preserved: ${updatePolicy.mustKeepExportAvailable ? 'yes' : 'no'}`,
     `Store links: ${storeSummary}`,
+    `Update manifest: ${updateManifestSummary ?? 'local release notes only'}`,
     `Recovery point: ${backupStatusLabel}`,
     `Recovery detail: ${backupStatusDetail}`,
     `Category rule version: ${categoryRuleVersion}`,

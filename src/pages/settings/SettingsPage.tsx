@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
@@ -69,6 +69,8 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const storeLinks = useMemo(() => createStoreLinks(), []);
   const primaryReadyStoreLink = useMemo(() => getPrimaryReadyStoreLink(storeLinks), [storeLinks]);
   const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
+  const updateManifestSource = useMemo(() => createUpdateManifestSource(), []);
+  const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
   const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
   const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
   const backupStatus = useMemo(() => getMigrationBackupStatus({
@@ -82,11 +84,12 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     updateStatus,
     updatePolicy,
     storeSummary,
+    updateManifestSummary,
     backupStatusLabel: backupStatus.label,
     backupStatusDetail: backupStatus.detail,
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
-  }), [backupStatus.detail, backupStatus.label, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, updatePolicy, updateStatus, versionInfo]);
+  }), [backupStatus.detail, backupStatus.label, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, updateManifestSummary, updatePolicy, updateStatus, versionInfo]);
   const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
   const syncStatus = useMemo(() => createSyncStatusSummary({
     localTransactionCount: allTransactionCount,
@@ -637,7 +640,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
           <div style={{ width: '100%', background: t.surface, borderTopLeftRadius: r.modal, borderTopRightRadius: r.modal, padding: '14px', boxShadow: t.shadow }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: '14px', fontWeight: 800, color: t.primary, marginBottom: '5px' }}>{updateStatus.label}</div>
             <div style={{ fontSize: '12px', color: t.secondary, lineHeight: 1.5, marginBottom: '12px' }}>{updateStatus.detail}</div>
-            <div style={{ marginBottom: '12px' }}><RiskNotice ariaLabel="檢查更新限制說明" title="目前是本機檢查" body={`${storeSummary} 現在先提供版本資訊、更新內容與更新前本機保護策略。`} t={t} r={r} /></div>
+            <div style={{ marginBottom: '12px' }}><RiskNotice ariaLabel="檢查更新限制說明" title="目前是本機檢查" body={`${storeSummary} ${updateManifestSummary} 現在先提供版本資訊、更新內容與更新前本機保護策略。`} t={t} r={r} /></div>
             <div aria-label="更新行為策略" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '10px', marginBottom: '12px', background: t.surfaceAlt, fontSize: '11px', lineHeight: 1.5, color: t.secondary }}>
               <div style={{ color: t.primary, fontWeight: 800, marginBottom: '4px' }}>{updatePolicy.title}</div>
               <div>{updatePolicy.message}</div>
@@ -645,6 +648,10 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               <div>可稍後處理：{updatePolicy.canPostpone ? '可以' : '不可以'}</div>
               <div>核心功能可用：{updatePolicy.canUseCoreApp ? '可以' : '限制主要操作'}</div>
               <div>資料匯出：{updatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
+            </div>
+            <div aria-label="遠端更新來源狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '8px', fontSize: '11px', color: t.secondary, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span>遠端版本 manifest</span>
+              <span>{updateManifestSource.status === 'ready' ? `已設定（${updateManifestSource.envKey}）` : `未設定（${updateManifestSource.envKey}）`}</span>
             </div>
             <div aria-label="商店更新連結狀態" style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
               {storeLinks.map((link) => (

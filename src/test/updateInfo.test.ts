@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus, normalizeStoreUrl } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -45,6 +45,26 @@ describe('updateInfo helpers', () => {
     expect(normalizeStoreUrl(' https://apps.apple.com/app/example ')).toBe('https://apps.apple.com/app/example');
     expect(normalizeStoreUrl('http://apps.apple.com/app/example')).toBeUndefined();
     expect(normalizeStoreUrl('not-a-url')).toBeUndefined();
+  });
+
+
+  it('normalizes and summarizes remote update manifest source safely', () => {
+    expect(normalizeUpdateManifestUrl(' https://example.com/app/update-manifest.json ')).toBe('https://example.com/app/update-manifest.json');
+    expect(normalizeUpdateManifestUrl('http://example.com/app/update-manifest.json')).toBeUndefined();
+
+    const placeholder = createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: '' });
+    const ready = createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/app/update-manifest.json' });
+
+    expect(placeholder.status).toBe('placeholder');
+    expect(getUpdateManifestAvailabilitySummary(placeholder)).toContain('尚未設定');
+    expect(ready).toEqual(expect.objectContaining({ status: 'ready', envKey: 'VITE_UPDATE_MANIFEST_URL', url: 'https://example.com/app/update-manifest.json' }));
+    expect(getUpdateManifestAvailabilitySummary(ready)).toContain('已設定');
+  });
+
+  it('classifies remote manifest updates including minimum supported versions', () => {
+    expect(getManifestUpdateStatus({ appVersion: '1.0.0' }, { latestVersion: '1.0.1', level: 'optional' })).toEqual(expect.objectContaining({ level: 'optional', label: '可選更新' }));
+    expect(getManifestUpdateStatus({ appVersion: '1.0.0' }, { latestVersion: '1.0.1', minimumSupportedVersion: '1.0.1' })).toEqual(expect.objectContaining({ level: 'required', label: '需要更新' }));
+    expect(getManifestUpdateStatus({ appVersion: '1.0.1' }, { latestVersion: '1.0.1', minimumSupportedVersion: '1.0.0' })).toEqual(expect.objectContaining({ level: 'current', label: '已是目前版本' }));
   });
 
   it('builds store links from Vite env without pretending missing links are ready', () => {

@@ -1,5 +1,28 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U11）
+
+## 0) 本輪完成（Update Feature U11：遠端更新 manifest 基礎）
+
+### U11. Remote update manifest readiness
+- `src/utils/updateInfo.ts`
+  - 新增 `createUpdateManifestSource()`、`normalizeUpdateManifestUrl()`、`getUpdateManifestAvailabilitySummary()`，以 `VITE_UPDATE_MANIFEST_URL` 管理遠端版本 manifest 來源。
+  - 新增 `getManifestUpdateStatus()`，支援 `latestVersion`、`minimumSupportedVersion` 與 optional/recommended/required 更新等級判定。
+  - 遠端 manifest URL 只接受 `https://`，未設定時回落本機 release notes，不假裝有線上查詢。
+- `src/pages/settings/SettingsPage.tsx`
+  - 「檢查更新」新增遠端版本 manifest 狀態，並把 manifest 狀態納入更新診斷。
+- `.env.example`
+  - 新增 `VITE_UPDATE_MANIFEST_URL` 範例欄位。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補遠端 manifest URL 正規化、minimum supported version 判定與 Settings UI 狀態測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 148 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U10）
 
 ## 0) 本輪完成（Update Feature U10：商店連結設定）
