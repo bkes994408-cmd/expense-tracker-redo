@@ -24,6 +24,7 @@ export type StoreLink = {
   label: string;
   status: 'placeholder' | 'ready';
   url?: string;
+  envKey: string;
 };
 
 export type UpdatePolicy = {
@@ -50,10 +51,38 @@ export type UpdateDiagnosticsInput = {
 
 export const DATA_SCHEMA_VERSION = 5;
 
-export const STORE_LINKS: StoreLink[] = [
-  { target: 'appStore', label: 'App Store', status: 'placeholder' },
-  { target: 'playStore', label: 'Play Store', status: 'placeholder' },
+export type StoreLinkEnv = Partial<Record<string, string | undefined>>;
+
+export const STORE_LINK_CONFIG: Array<Pick<StoreLink, 'target' | 'label' | 'envKey'>> = [
+  { target: 'appStore', label: 'App Store', envKey: 'VITE_APP_STORE_URL' },
+  { target: 'playStore', label: 'Play Store', envKey: 'VITE_PLAY_STORE_URL' },
 ];
+
+export function normalizeStoreUrl(rawUrl: string | undefined): string | undefined {
+  const value = rawUrl?.trim();
+  if (!value) return undefined;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+export function createStoreLinks(env: StoreLinkEnv = import.meta.env as unknown as StoreLinkEnv): StoreLink[] {
+  return STORE_LINK_CONFIG.map((config) => {
+    const url = normalizeStoreUrl(env[config.envKey]);
+    return {
+      ...config,
+      status: url ? 'ready' : 'placeholder',
+      url,
+    };
+  });
+}
+
+export const STORE_LINKS: StoreLink[] = createStoreLinks();
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
@@ -202,6 +231,10 @@ export function getStoreAvailabilitySummary(storeLinks = STORE_LINKS): string {
   const ready = storeLinks.filter((link) => link.status === 'ready');
   if (ready.length === 0) return '商店連結會在正式上架後啟用，目前不會假裝可直接更新。';
   return `已啟用 ${ready.map((link) => link.label).join(' / ')} 更新連結。`;
+}
+
+export function getPrimaryReadyStoreLink(storeLinks = STORE_LINKS): StoreLink | undefined {
+  return storeLinks.find((link) => link.status === 'ready' && link.url);
 }
 
 export function createLocalBackupSummary(versionInfo: VersionInfo): string {
