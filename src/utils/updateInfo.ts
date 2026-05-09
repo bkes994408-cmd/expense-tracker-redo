@@ -37,6 +37,17 @@ export type UpdatePolicy = {
   message: string;
 };
 
+export type UpdateDiagnosticsInput = {
+  versionInfo: VersionInfo;
+  updateStatus: { level: UpdateLevel; label: string; detail: string };
+  updatePolicy: UpdatePolicy;
+  storeSummary: string;
+  backupStatusLabel: string;
+  backupStatusDetail: string;
+  categoryRuleVersion: string;
+  noteSuggestionRuleVersion: string;
+};
+
 export const DATA_SCHEMA_VERSION = 5;
 
 export const STORE_LINKS: StoreLink[] = [
@@ -195,4 +206,27 @@ export function getStoreAvailabilitySummary(storeLinks = STORE_LINKS): string {
 
 export function createLocalBackupSummary(versionInfo: VersionInfo): string {
   return `更新前會建立本機復原點：app ${versionInfo.appVersion} / build ${versionInfo.buildNumber} / schema v${versionInfo.schemaVersion}`;
+}
+
+export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): string {
+  const { versionInfo, updateStatus, updatePolicy, storeSummary, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
+
+  return [
+    'Expense Tracker Redo 更新診斷',
+    `App version: ${versionInfo.appVersion}`,
+    `Build number: ${versionInfo.buildNumber}`,
+    `Data schema: v${versionInfo.schemaVersion}`,
+    `Release channel: ${versionInfo.releaseChannel}`,
+    `Data status: ${versionInfo.lastDataUpdateLabel}`,
+    `Update status: ${updateStatus.label} (${updateStatus.level})`,
+    `Update detail: ${updateStatus.detail}`,
+    `Update policy: ${updatePolicy.title}`,
+    `Core app usable: ${updatePolicy.canUseCoreApp ? 'yes' : 'limited'}`,
+    `Export preserved: ${updatePolicy.mustKeepExportAvailable ? 'yes' : 'no'}`,
+    `Store links: ${storeSummary}`,
+    `Recovery point: ${backupStatusLabel}`,
+    `Recovery detail: ${backupStatusDetail}`,
+    `Category rule version: ${categoryRuleVersion}`,
+    `Note suggestion rule version: ${noteSuggestionRuleVersion}`,
+  ].join('\n');
 }

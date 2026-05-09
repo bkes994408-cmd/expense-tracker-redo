@@ -1,5 +1,22 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-09（更新功能 U6）
+
+## 0) 本輪完成（Update Feature U6：更新診斷匯出）
+
+### U6. 可複製更新診斷
+- `src/utils/updateInfo.ts`
+  - 新增 `createUpdateDiagnosticsText()`，彙整版本、build、schema、更新狀態、更新策略、商店連結狀態、本機復原點與規則版本。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings > 關於 > 更新保護新增「複製更新診斷」按鈕，方便回報問題或交接 QA。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補診斷文字與複製互動測試。
+
+### 驗證
+- `npm run test -- updateInfo interaction` ✅ 2 files / 55 tests passed
+- `npm run build` ✅ passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-08（更新功能 U1～U5）
 
 ## 0) 本輪完成（Update Feature U1～U5）

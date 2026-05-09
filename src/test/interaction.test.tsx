@@ -660,6 +660,11 @@ describe('interaction', () => {
     const onExportCsv = vi.fn();
     const onClearAllData = vi.fn();
     const onRateApp = vi.fn();
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    });
 
     render(
       <SettingsPage
@@ -718,6 +723,9 @@ describe('interaction', () => {
     expect(screen.getByText('版本資訊中心')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '關閉' }));
     expect(screen.getByLabelText('分類規則版本狀態')).toHaveTextContent('不覆蓋手動分類');
+    fireEvent.click(screen.getByRole('button', { name: '複製更新診斷' }));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('Expense Tracker Redo 更新診斷'));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('Recovery point: 尚無本機復原點'));
     fireEvent.click(screen.getByText('檢查更新'));
     expect(screen.getByRole('dialog', { name: '檢查更新結果' })).toBeInTheDocument();
     expect(screen.getByText('目前是本機檢查')).toBeInTheDocument();
