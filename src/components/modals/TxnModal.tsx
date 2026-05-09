@@ -203,6 +203,8 @@ export function TxnModal({ t, r, f, initial, month, onSave, onClose, recentCateg
     let nextName = name;
     let nextCat = cat;
     let nextOriginalCurrency = initial?.originalCurrency;
+    let nextCategorySource = initial?.categorySource ?? 'user';
+    let nextCategoryRuleVersion = initial?.categoryRuleVersion;
 
     if (tab === 'quick' && quickInput.trim()) {
       const parsed = applyQuickInput();
@@ -212,7 +214,12 @@ export function TxnModal({ t, r, f, initial, month, onSave, onClose, recentCateg
         nextName = parsed.name;
         nextCat = parsed.cat;
         nextOriginalCurrency = parsed.originalCurrency;
+        nextCategorySource = parsed.categorySource;
+        nextCategoryRuleVersion = parsed.categoryRuleVersion;
       }
+    } else if (!initial || nextCat !== initial.cat) {
+      nextCategorySource = 'user';
+      nextCategoryRuleVersion = undefined;
     }
 
     if (!nextAmount || !nextName) {
@@ -230,6 +237,8 @@ export function TxnModal({ t, r, f, initial, month, onSave, onClose, recentCateg
       date: initial?.date ?? defaultDate,
       time: initial?.time ?? new Date().toTimeString().slice(0, 5),
       originalCurrency: nextOriginalCurrency,
+      categorySource: nextCategorySource,
+      categoryRuleVersion: nextCategoryRuleVersion,
       isRec,
       freq,
     });

@@ -16,6 +16,7 @@ import { useIsMobileViewport } from '../hooks/useIsMobileViewport';
 import { useRecurringActions } from '../hooks/useRecurringActions';
 import { useToastQueue } from '../hooks/useToastQueue';
 import { buildRecurringItemFromTransaction, normalizeSavedTransaction } from './appActions';
+import { reapplyCategoryRulesToTransactions } from '../rules/categoryRules';
 
 import type { Category, Transaction } from '../domain/types';
 
@@ -101,6 +102,21 @@ export function App(){
   }
 
   function deleteTxn(id: number) { setTxns((p) => p.filter((x) => x.id !== id)); toast('已刪除', 'warn'); }
+  function reapplyCategoryRules(ids: number[]) {
+    const result = reapplyCategoryRulesToTransactions(txns, ids);
+    if (result.changed > 0) setTxns(result.transactions);
+
+    if (result.eligible === 0) {
+      toast('沒有可重新套用分類規則的交易', 'warn');
+    } else if (result.changed === 0) {
+      toast(`分類規則已是最新（0/${result.eligible} 筆變更）`);
+    } else {
+      const names = result.changedNames.length > 0 ? `：${result.changedNames.slice(0, 3).join('、')}${result.changedNames.length > 3 ? '…' : ''}` : '';
+      toast(`已重新套用分類規則（${result.changed}/${result.eligible} 筆）${names}`);
+    }
+
+    return result;
+  }
   function openEdit(tx: Transaction) { setEditTx(tx); setTxnModalTab('calc'); setTxnModalQuickInput(''); setShowAdd(true); }
 
   const openQuickEntry = (initialInput: string = '') => { setEditTx(null); setTxnModalTab('quick'); setTxnModalQuickInput(initialInput); setShowAdd(true); };
@@ -108,7 +124,7 @@ export function App(){
 
   const screens=[
     <HomePage txns={selectedTxns} budgets={budgets} recurring={recurring} goals={goals} loading={loading} currency={displayCurrency} recentQuickEntries={recentQuickEntries} onQuickEntryOpen={openQuickEntry} t={t} r={r} f={f}/>,
-    <TransactionsPage txns={selectedTxns} recurring={recurring} currency={displayCurrency} t={t} r={r} f={f} onEdit={openEdit} onDelete={deleteTxn} onRecChange={toggleRecurring} onRecBatchResult={handleRecurringBatchResult} onRecSave={saveRecurring} onRecDelete={deleteRecurring} onRecConfirmPending={confirmRecurringPendingCycle} onRecSkipPending={skipRecurringPendingCycle} month={month} setMonth={setMonth}/>,
+    <TransactionsPage txns={selectedTxns} recurring={recurring} currency={displayCurrency} t={t} r={r} f={f} onEdit={openEdit} onDelete={deleteTxn} onReapplyCategoryRules={reapplyCategoryRules} onRecChange={toggleRecurring} onRecBatchResult={handleRecurringBatchResult} onRecSave={saveRecurring} onRecDelete={deleteRecurring} onRecConfirmPending={confirmRecurringPendingCycle} onRecSkipPending={skipRecurringPendingCycle} month={month} setMonth={setMonth}/>,
     null,
     <ReportsPage txns={selectedTxns} reportTxns={txns} currency={displayCurrency} budgets={budgets} setBudgets={setBudgets} goals={goals} setGoals={setGoals} t={t} r={r} f={f}/>,
     <SettingsPage t={t} r={r} f={f} style={style} setStyle={setStyle} mode={mode} setMode={setMode} currency={displayCurrency} setCurrency={setDisplayCurrency} monthStartDay={monthStartDay} setMonthStartDay={setMonthStartDay} billReminder={billReminder} setBillReminder={setBillReminder} iCloudBackup={iCloudBackup} setICloudBackup={setICloudBackup} exportCategories={exportCategories} getCsvExportCount={getCsvExportCount} onExportCsv={exportCsv} lastCsvExport={lastCsvExport} onClearAllData={clearAllData} onRateApp={()=>toast('App 評分功能即將推出')} />,

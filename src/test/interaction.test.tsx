@@ -578,6 +578,42 @@ describe('interaction', () => {
     expect(row).toHaveAttribute('data-swipe-state', 'closed');
   });
 
+  it('RecordsTab 可重新套用分類規則且保護手動分類', () => {
+    const onReapplyCategoryRules = vi.fn(() => ({
+      scanned: 2,
+      eligible: 1,
+      changed: 1,
+      unchanged: 0,
+      skippedManual: 1,
+      changedNames: ['uber'],
+      transactions: [],
+    }));
+
+    render(
+      <RecordsTab
+        txns={[
+          { id: 1, name: 'uber', cat: '餐飲', amount: -280, date: '2026-04-10', time: '12:30', categorySource: 'system', categoryRuleVersion: 'old' },
+          { id: 2, name: '星巴克', cat: '交通', amount: -120, date: '2026-04-10', time: '13:30', categorySource: 'user' },
+        ]}
+        currency="NTD"
+        t={t}
+        r={r}
+        f={f}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        onReapplyCategoryRules={onReapplyCategoryRules}
+      />,
+    );
+
+    expect(screen.getByLabelText('分類規則重新套用區')).toHaveTextContent('可重新套用 1 筆');
+    expect(screen.getByLabelText('分類規則重新套用區')).toHaveTextContent('手動分類不會被覆蓋');
+
+    fireEvent.click(screen.getByRole('button', { name: '重新套用分類規則' }));
+
+    expect(onReapplyCategoryRules).toHaveBeenCalledWith(expect.arrayContaining([1, 2]));
+    expect(screen.getByLabelText('分類規則重新套用結果')).toHaveTextContent('已更新 1/1 筆：uber');
+  });
+
   it('TransactionsPage 會用 updater 更新月份（對應 store update 路徑）', () => {
     let month = 3;
 
