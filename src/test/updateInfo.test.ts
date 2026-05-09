@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createVersionInfo, formatDataUpdateTime, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -46,5 +46,26 @@ describe('updateInfo helpers', () => {
 
     expect(summary).toContain('本機復原點');
     expect(summary).toContain(`schema v${DATA_SCHEMA_VERSION}`);
+  });
+
+  it('creates copyable update diagnostics for support handoff', () => {
+    const versionInfo = createVersionInfo();
+    const updateStatus = getUpdateStatus(versionInfo);
+    const updatePolicy = getUpdatePolicy(updateStatus.level);
+    const diagnostics = createUpdateDiagnosticsText({
+      versionInfo,
+      updateStatus,
+      updatePolicy,
+      storeSummary: getStoreAvailabilitySummary(),
+      backupStatusLabel: '尚無本機復原點',
+      backupStatusDetail: '更新前若需要 migration，系統會先建立本機復原點。',
+      categoryRuleVersion: 'category-test',
+      noteSuggestionRuleVersion: 'note-test',
+    });
+
+    expect(diagnostics).toContain('Expense Tracker Redo 更新診斷');
+    expect(diagnostics).toContain('App version: 1.0.0');
+    expect(diagnostics).toContain('Recovery point: 尚無本機復原點');
+    expect(diagnostics).toContain('Category rule version: category-test');
   });
 });

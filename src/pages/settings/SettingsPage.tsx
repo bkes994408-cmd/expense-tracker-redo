@@ -10,7 +10,7 @@ import { createCurrencyDisplayContext, getDisplayCurrencySemanticHint } from '..
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, STORE_LINKS, createLocalBackupSummary, createVersionInfo, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, STORE_LINKS, createLocalBackupSummary, createUpdateDiagnosticsText, createVersionInfo, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
 
 type RowProps = {
   C: LucideIcon;
@@ -71,6 +71,16 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
       return window.localStorage.getItem(key);
     },
   }, FINANCE_STORAGE_KEY), []);
+  const updateDiagnosticsText = useMemo(() => createUpdateDiagnosticsText({
+    versionInfo,
+    updateStatus,
+    updatePolicy,
+    storeSummary,
+    backupStatusLabel: backupStatus.label,
+    backupStatusDetail: backupStatus.detail,
+    categoryRuleVersion: ruleStatus.categoryRuleVersion,
+    noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
+  }), [backupStatus.detail, backupStatus.label, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, updatePolicy, updateStatus, versionInfo]);
 
   const previewCount = useMemo(() => {
     if (exportScope === 'category' && !selectedCategory) return null;
@@ -338,6 +348,19 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
             t={t}
             r={r}
           />
+          <button
+            className="press"
+            aria-label="複製更新診斷"
+            onClick={() => copyText('更新診斷', updateDiagnosticsText)}
+            style={{ marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+          >
+            複製更新診斷
+          </button>
+          {copyFeedback && (
+            <div aria-label="更新診斷複製回饋" style={{ marginTop: '6px', fontSize: '11px', color: t.secondary }}>
+              {copyFeedback}
+            </div>
+          )}
         </div>
       </Sec>
 
