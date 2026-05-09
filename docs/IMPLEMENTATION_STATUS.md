@@ -1,5 +1,25 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U9）
+
+## 0) 本輪完成（Update Feature U9：匯率口徑準備）
+
+### U9. 匯率資料狀態 baseline
+- `src/utils/exchangeRatePolicy.ts`
+  - 新增 `createExchangeRateReadinessSummary()`，描述顯示幣別、基準幣別、匯率來源狀態與歷史匯率口徑。
+  - 目前預設為「尚未設定匯率來源 / 尚未定義歷史匯率口徑 / 不自動換算」。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings > 偏好設定新增「匯率資料狀態」提示，明確說明目前只切換符號與格式，不會自動換算。
+- `src/test/exchangeRatePolicy.test.ts`、`src/test/interaction.test.tsx`
+  - 補匯率口徑 helper 與 Settings UI 文案測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 144 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U8）
 
 ## 0) 本輪完成（Update Feature U8：同步狀態中心）
