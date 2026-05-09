@@ -743,6 +743,12 @@ describe('interaction', () => {
     fireEvent.change(screen.getByLabelText('CSV分類匯出分類'), { target: { value: '交通' } });
     expect(screen.getByLabelText('CSV匯出檔名預覽')).toHaveTextContent(`下載檔名：${getCsvFilename({ scope: 'category', category: '交通' })}`);
     fireEvent.click(screen.getByRole('button', { name: '匯出 CSV' }));
+    expect(screen.getByLabelText('同步狀態中心')).toHaveTextContent('目前資料只儲存在此裝置');
+    expect(screen.getByLabelText('同步狀態項目')).toHaveTextContent('本機交易：2 筆');
+    expect(screen.getByLabelText('同步狀態項目')).toHaveTextContent('未啟用雲端同步');
+    fireEvent.click(screen.getByRole('button', { name: '複製同步狀態' }));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('Expense Tracker Redo 同步狀態'));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('Local transactions: 2'));
     fireEvent.click(screen.getByText('清除所有資料'));
     expect(screen.getByRole('dialog', { name: '清除所有資料確認' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '確認清除所有資料' }));
