@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -65,6 +65,64 @@ describe('updateInfo helpers', () => {
     expect(getManifestUpdateStatus({ appVersion: '1.0.0' }, { latestVersion: '1.0.1', level: 'optional' })).toEqual(expect.objectContaining({ level: 'optional', label: '可選更新' }));
     expect(getManifestUpdateStatus({ appVersion: '1.0.0' }, { latestVersion: '1.0.1', minimumSupportedVersion: '1.0.1' })).toEqual(expect.objectContaining({ level: 'required', label: '需要更新' }));
     expect(getManifestUpdateStatus({ appVersion: '1.0.1' }, { latestVersion: '1.0.1', minimumSupportedVersion: '1.0.0' })).toEqual(expect.objectContaining({ level: 'current', label: '已是目前版本' }));
+  });
+
+
+  it('parses only valid remote update manifest payloads', () => {
+    expect(parseRemoteUpdateManifest({ latestVersion: ' 1.0.2 ', minimumSupportedVersion: '1.0.0', level: 'recommended', message: ' 更新可用 ' })).toEqual({
+      latestVersion: '1.0.2',
+      minimumSupportedVersion: '1.0.0',
+      level: 'recommended',
+      message: '更新可用',
+    });
+    expect(parseRemoteUpdateManifest({ latestVersion: '' })).toBeUndefined();
+    expect(parseRemoteUpdateManifest({ latestVersion: '1.0.2', level: 'current' })).toBeUndefined();
+    expect(parseRemoteUpdateManifest(null)).toBeUndefined();
+  });
+
+  it('skips remote update fetch when manifest source is not configured', async () => {
+    let called = false;
+    const result = await fetchRemoteUpdateManifest(createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: '' }), { appVersion: '1.0.0' }, {
+      fetcher: async () => {
+        called = true;
+        return { ok: true, status: 200, json: async () => ({ latestVersion: '1.0.2' }) };
+      },
+    });
+
+    expect(called).toBe(false);
+    expect(result.status).toBe('not-configured');
+    expect(result.updateStatus.level).toBe('current');
+  });
+
+  it('fetches and validates remote update manifest before classifying update status', async () => {
+    const source = createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' });
+    const result = await fetchRemoteUpdateManifest(source, { appVersion: '1.0.0' }, {
+      fetcher: async (url, init) => {
+        expect(url).toBe('https://example.com/update-manifest.json');
+        expect(init?.headers).toEqual({ Accept: 'application/json' });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ latestVersion: '1.0.2', minimumSupportedVersion: '1.0.1', message: '請更新以維持資料相容。' }),
+        };
+      },
+    });
+
+    expect(result.status).toBe('success');
+    expect(result.updateStatus.level).toBe('required');
+    expect(result.summary).toContain('最新版本 1.0.2');
+  });
+
+  it('falls back to local release notes when remote update manifest fetch fails', async () => {
+    const source = createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' });
+    const result = await fetchRemoteUpdateManifest(source, { appVersion: '1.0.0' }, {
+      fetcher: async () => ({ ok: false, status: 503, statusText: 'Service Unavailable', json: async () => ({}) }),
+    });
+
+    expect(result.status).toBe('error');
+    expect(result.errorMessage).toContain('HTTP 503');
+    expect(result.updateStatus.level).toBe('current');
+    expect(result.summary).toContain('已回落本機 release notes');
   });
 
   it('builds store links from Vite env without pretending missing links are ready', () => {

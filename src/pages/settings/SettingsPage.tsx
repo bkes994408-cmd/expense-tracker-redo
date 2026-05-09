@@ -11,7 +11,8 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import type { UpdateManifestFetchResult } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
@@ -24,6 +25,11 @@ type RowProps = {
   r: SettingsPageProps['r'];
   f: SettingsPageProps['f'];
 };
+
+type ManifestCheckState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | UpdateManifestFetchResult;
 
 function Row({ C, label, right, noBorder = false, onClick, t, r, f }: RowProps) {
   return (
@@ -58,19 +64,24 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [updateCheckOpen, setUpdateCheckOpen] = useState(false);
+  const [manifestCheck, setManifestCheck] = useState<ManifestCheckState>({ status: 'idle' });
   const clearKeyword = 'CLEAR';
   const isClearKeywordMatched = clearConfirmText.trim().toUpperCase() === clearKeyword;
   const currencyContext = useMemo(() => createCurrencyDisplayContext(currency), [currency]);
   const currencySemanticHint = getDisplayCurrencySemanticHint(currencyContext);
   const exchangeRateSummary = useMemo(() => createExchangeRateReadinessSummary(currencyContext), [currencyContext]);
   const versionInfo = useMemo(() => createVersionInfo(), []);
-  const updateStatus = useMemo(() => getUpdateStatus(versionInfo), [versionInfo]);
-  const updatePolicy = useMemo(() => getUpdatePolicy(updateStatus.level), [updateStatus.level]);
+  const localUpdateStatus = useMemo(() => getUpdateStatus(versionInfo), [versionInfo]);
   const storeLinks = useMemo(() => createStoreLinks(), []);
   const primaryReadyStoreLink = useMemo(() => getPrimaryReadyStoreLink(storeLinks), [storeLinks]);
   const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
   const updateManifestSource = useMemo(() => createUpdateManifestSource(), []);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
+  const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
+  const activeUpdatePolicy = useMemo(() => getUpdatePolicy(activeUpdateStatus.level), [activeUpdateStatus.level]);
+  const manifestCheckSummary = manifestCheck.status === 'success' || manifestCheck.status === 'error' || manifestCheck.status === 'not-configured'
+    ? manifestCheck.summary
+    : updateManifestSummary;
   const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
   const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
   const backupStatus = useMemo(() => getMigrationBackupStatus({
@@ -81,15 +92,15 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   }, FINANCE_STORAGE_KEY), []);
   const updateDiagnosticsText = useMemo(() => createUpdateDiagnosticsText({
     versionInfo,
-    updateStatus,
-    updatePolicy,
+    updateStatus: activeUpdateStatus,
+    updatePolicy: activeUpdatePolicy,
     storeSummary,
-    updateManifestSummary,
+    updateManifestSummary: manifestCheckSummary,
     backupStatusLabel: backupStatus.label,
     backupStatusDetail: backupStatus.detail,
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
-  }), [backupStatus.detail, backupStatus.label, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, updateManifestSummary, updatePolicy, updateStatus, versionInfo]);
+  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, versionInfo]);
   const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
   const syncStatus = useMemo(() => createSyncStatusSummary({
     localTransactionCount: allTransactionCount,
@@ -134,9 +145,25 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const lastConditionText = lastCsvExport
     ? `範圍 ${lastScopeLabel}｜分類 ${lastCategoryLabel}｜筆數 ${lastCsvExport.count}`
     : '';
-  const updatePrimaryActionLabel = primaryReadyStoreLink && updatePolicy.level !== 'current'
+  const updatePrimaryActionLabel = primaryReadyStoreLink && activeUpdatePolicy.level !== 'current'
     ? `開啟 ${primaryReadyStoreLink.label}`
-    : updatePolicy.primaryAction;
+    : activeUpdatePolicy.primaryAction;
+  const updateCheckNoticeTitle = manifestCheck.status === 'checking'
+    ? '正在查詢遠端 manifest'
+    : manifestCheck.status === 'success'
+      ? '已使用遠端 manifest'
+      : manifestCheck.status === 'error'
+        ? '遠端查詢失敗'
+        : '目前是本機檢查';
+  const remoteManifestStatusText = manifestCheck.status === 'checking'
+    ? '查詢中'
+    : manifestCheck.status === 'success'
+      ? `遠端成功（latest ${manifestCheck.manifest?.latestVersion ?? '未知'}）`
+      : manifestCheck.status === 'error'
+        ? '遠端失敗，已回落本機'
+        : updateManifestSource.status === 'ready'
+          ? `已設定（${updateManifestSource.envKey}）`
+          : `未設定（${updateManifestSource.envKey}）`;
 
   async function copyText(label: string, text: string) {
     if (!text) return;
@@ -161,15 +188,32 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     }
   }
 
+  function handleOpenUpdateCheck() {
+    setUpdateCheckOpen(true);
+
+    if (updateManifestSource.status !== 'ready') {
+      setManifestCheck({
+        status: 'not-configured',
+        source: updateManifestSource,
+        updateStatus: localUpdateStatus,
+        summary: updateManifestSummary,
+      });
+      return;
+    }
+
+    setManifestCheck({ status: 'checking' });
+    void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then(setManifestCheck);
+  }
+
   function handleUpdatePrimaryAction() {
-    if (primaryReadyStoreLink?.url && updatePolicy.level !== 'current' && typeof window !== 'undefined' && typeof window.open === 'function') {
+    if (primaryReadyStoreLink?.url && activeUpdatePolicy.level !== 'current' && typeof window !== 'undefined' && typeof window.open === 'function') {
       window.open(primaryReadyStoreLink.url, '_blank', 'noopener,noreferrer');
       setUpdateCheckOpen(false);
       return;
     }
 
     setUpdateCheckOpen(false);
-    if (updatePolicy.level === 'optional') setReleaseNotesOpen(true);
+    if (activeUpdatePolicy.level === 'optional') setReleaseNotesOpen(true);
   }
 
   return (
@@ -419,7 +463,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
           </div>
         </div>
         <Row C={FileText} label="更新內容" t={t} r={r} f={f} onClick={() => setReleaseNotesOpen(true)} right={<span style={{ fontSize: '12px', color: t.secondary }}>最近 {RELEASE_NOTES.length} 筆 <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
-        <Row C={RefreshCw} label="檢查更新" t={t} r={r} f={f} onClick={() => setUpdateCheckOpen(true)} right={<span style={{ fontSize: '12px', color: updateStatus.level === 'current' ? t.secondary : t.accent }}>{updateStatus.label} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
+        <Row C={RefreshCw} label="檢查更新" t={t} r={r} f={f} onClick={handleOpenUpdateCheck} right={<span style={{ fontSize: '12px', color: activeUpdateStatus.level === 'current' ? t.secondary : t.accent }}>{activeUpdateStatus.label} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
         <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>
           <RiskNotice ariaLabel="更新安全提醒" title="安全更新策略" body={backupSummary} t={t} r={r} />
         </div>
@@ -638,21 +682,26 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
       {updateCheckOpen && (
         <div role="dialog" aria-label="檢查更新結果" style={{ position: 'fixed', inset: 0, background: t.modalOverlay, zIndex: 90, display: 'flex', alignItems: 'flex-end' }} onClick={() => setUpdateCheckOpen(false)}>
           <div style={{ width: '100%', background: t.surface, borderTopLeftRadius: r.modal, borderTopRightRadius: r.modal, padding: '14px', boxShadow: t.shadow }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: '14px', fontWeight: 800, color: t.primary, marginBottom: '5px' }}>{updateStatus.label}</div>
-            <div style={{ fontSize: '12px', color: t.secondary, lineHeight: 1.5, marginBottom: '12px' }}>{updateStatus.detail}</div>
-            <div style={{ marginBottom: '12px' }}><RiskNotice ariaLabel="檢查更新限制說明" title="目前是本機檢查" body={`${storeSummary} ${updateManifestSummary} 現在先提供版本資訊、更新內容與更新前本機保護策略。`} t={t} r={r} /></div>
+            <div style={{ fontSize: '14px', fontWeight: 800, color: t.primary, marginBottom: '5px' }}>{activeUpdateStatus.label}</div>
+            <div style={{ fontSize: '12px', color: t.secondary, lineHeight: 1.5, marginBottom: '12px' }}>{activeUpdateStatus.detail}</div>
+            <div style={{ marginBottom: '12px' }}><RiskNotice ariaLabel="檢查更新限制說明" title={updateCheckNoticeTitle} body={`${storeSummary} ${manifestCheckSummary} 現在先提供版本資訊、更新內容與更新前本機保護策略。`} tone={manifestCheck.status === 'error' ? 'warn' : 'neutral'} t={t} r={r} /></div>
             <div aria-label="更新行為策略" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '10px', marginBottom: '12px', background: t.surfaceAlt, fontSize: '11px', lineHeight: 1.5, color: t.secondary }}>
-              <div style={{ color: t.primary, fontWeight: 800, marginBottom: '4px' }}>{updatePolicy.title}</div>
-              <div>{updatePolicy.message}</div>
-              <div style={{ marginTop: '6px' }}>主要操作：{updatePolicy.primaryAction}</div>
-              <div>可稍後處理：{updatePolicy.canPostpone ? '可以' : '不可以'}</div>
-              <div>核心功能可用：{updatePolicy.canUseCoreApp ? '可以' : '限制主要操作'}</div>
-              <div>資料匯出：{updatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
+              <div style={{ color: t.primary, fontWeight: 800, marginBottom: '4px' }}>{activeUpdatePolicy.title}</div>
+              <div>{activeUpdatePolicy.message}</div>
+              <div style={{ marginTop: '6px' }}>主要操作：{activeUpdatePolicy.primaryAction}</div>
+              <div>可稍後處理：{activeUpdatePolicy.canPostpone ? '可以' : '不可以'}</div>
+              <div>核心功能可用：{activeUpdatePolicy.canUseCoreApp ? '可以' : '限制主要操作'}</div>
+              <div>資料匯出：{activeUpdatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
             </div>
             <div aria-label="遠端更新來源狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '8px', fontSize: '11px', color: t.secondary, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
               <span>遠端版本 manifest</span>
-              <span>{updateManifestSource.status === 'ready' ? `已設定（${updateManifestSource.envKey}）` : `未設定（${updateManifestSource.envKey}）`}</span>
+              <span>{remoteManifestStatusText}</span>
             </div>
+            {manifestCheck.status === 'error' && (
+              <div aria-label="遠端更新錯誤" style={{ margin: '-2px 0 8px', fontSize: '11px', color: t.secondary }}>
+                錯誤：{manifestCheck.errorMessage}
+              </div>
+            )}
             <div aria-label="商店更新連結狀態" style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
               {storeLinks.map((link) => (
                 <div key={link.target} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', fontSize: '11px', color: t.secondary }}>
@@ -669,15 +718,16 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               <div>復原點狀態：{backupStatus.label}</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {updatePolicy.secondaryAction && (
-                <button className="press" onClick={() => setUpdateCheckOpen(false)} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{updatePolicy.secondaryAction}</button>
+              {activeUpdatePolicy.secondaryAction && (
+                <button className="press" onClick={() => setUpdateCheckOpen(false)} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{activeUpdatePolicy.secondaryAction}</button>
               )}
               <button
                 className="press"
                 onClick={handleUpdatePrimaryAction}
-                style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: t.chipActive, color: t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                disabled={manifestCheck.status === 'checking'}
+                style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: manifestCheck.status === 'checking' ? t.surfaceAlt : t.chipActive, color: manifestCheck.status === 'checking' ? t.secondary : t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: manifestCheck.status === 'checking' ? 'wait' : 'pointer' }}
               >
-                {updatePrimaryActionLabel}
+                {manifestCheck.status === 'checking' ? '查詢中…' : updatePrimaryActionLabel}
               </button>
             </div>
           </div>
