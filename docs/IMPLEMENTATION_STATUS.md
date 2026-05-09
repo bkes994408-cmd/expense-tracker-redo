@@ -1,5 +1,26 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U10）
+
+## 0) 本輪完成（Update Feature U10：商店連結設定）
+
+### U10. App Store / Play Store 連結設定
+- `src/utils/updateInfo.ts`
+  - 新增 `createStoreLinks()`、`normalizeStoreUrl()`、`getPrimaryReadyStoreLink()`，透過 `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` 產生商店更新連結狀態。
+  - 只接受 `https://` 商店 URL；未設定或不安全 URL 會維持 placeholder，避免誤導可更新。
+- `src/pages/settings/SettingsPage.tsx`
+  - 「檢查更新」改讀設定後的商店連結；有可用連結且不是目前版本時，主要操作可開啟商店。
+  - UI 顯示每個商店連結對應的 env key，方便上架前 QA 確認設定來源。
+- `.env.example`、`.gitignore`
+  - 新增商店連結範例環境變數，並避免本機 `.env*` 誤入版本庫。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補安全 URL 正規化、env-driven store links 與既有 Settings 檢查更新流程測試。
+
+### 驗證
+- `npm run test -- updateInfo interaction` ✅ 2 files / 58 tests passed
+- `npm run build` ✅ passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U9）
 
 ## 0) 本輪完成（Update Feature U9：匯率口徑準備）

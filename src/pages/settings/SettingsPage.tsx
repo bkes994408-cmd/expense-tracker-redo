@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, STORE_LINKS, createLocalBackupSummary, createUpdateDiagnosticsText, createVersionInfo, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
@@ -66,7 +66,9 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const versionInfo = useMemo(() => createVersionInfo(), []);
   const updateStatus = useMemo(() => getUpdateStatus(versionInfo), [versionInfo]);
   const updatePolicy = useMemo(() => getUpdatePolicy(updateStatus.level), [updateStatus.level]);
-  const storeSummary = useMemo(() => getStoreAvailabilitySummary(STORE_LINKS), []);
+  const storeLinks = useMemo(() => createStoreLinks(), []);
+  const primaryReadyStoreLink = useMemo(() => getPrimaryReadyStoreLink(storeLinks), [storeLinks]);
+  const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
   const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
   const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
   const backupStatus = useMemo(() => getMigrationBackupStatus({
@@ -129,6 +131,9 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const lastConditionText = lastCsvExport
     ? `範圍 ${lastScopeLabel}｜分類 ${lastCategoryLabel}｜筆數 ${lastCsvExport.count}`
     : '';
+  const updatePrimaryActionLabel = primaryReadyStoreLink && updatePolicy.level !== 'current'
+    ? `開啟 ${primaryReadyStoreLink.label}`
+    : updatePolicy.primaryAction;
 
   async function copyText(label: string, text: string) {
     if (!text) return;
@@ -151,6 +156,17 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
       setCopyFeedback(`複製${label}失敗，請手動複製`);
       setTimeout(() => setCopyFeedback(''), 2400);
     }
+  }
+
+  function handleUpdatePrimaryAction() {
+    if (primaryReadyStoreLink?.url && updatePolicy.level !== 'current' && typeof window !== 'undefined' && typeof window.open === 'function') {
+      window.open(primaryReadyStoreLink.url, '_blank', 'noopener,noreferrer');
+      setUpdateCheckOpen(false);
+      return;
+    }
+
+    setUpdateCheckOpen(false);
+    if (updatePolicy.level === 'optional') setReleaseNotesOpen(true);
   }
 
   return (
@@ -631,10 +647,10 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               <div>資料匯出：{updatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
             </div>
             <div aria-label="商店更新連結狀態" style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
-              {STORE_LINKS.map((link) => (
+              {storeLinks.map((link) => (
                 <div key={link.target} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', fontSize: '11px', color: t.secondary }}>
                   <span>{link.label}</span>
-                  <span>{link.status === 'ready' ? '已啟用' : '上架後啟用'}</span>
+                  <span>{link.status === 'ready' ? `已啟用（${link.envKey}）` : `上架後啟用（${link.envKey}）`}</span>
                 </div>
               ))}
             </div>
@@ -651,13 +667,10 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               )}
               <button
                 className="press"
-                onClick={() => {
-                  setUpdateCheckOpen(false);
-                  if (updatePolicy.level === 'optional') setReleaseNotesOpen(true);
-                }}
+                onClick={handleUpdatePrimaryAction}
                 style={{ flex: 1, border: 'none', borderRadius: r.input, padding: '10px', background: t.chipActive, color: t.chipActiveText, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
               >
-                {updatePolicy.primaryAction}
+                {updatePrimaryActionLabel}
               </button>
             </div>
           </div>

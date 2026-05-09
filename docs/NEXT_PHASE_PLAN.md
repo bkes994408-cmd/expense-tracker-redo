@@ -75,10 +75,10 @@
 
 ## 路線 C，更新功能後續（U6+）
 
-U1～U9 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心，以及匯率口徑準備。
+U1～U10 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心、匯率口徑準備，以及商店連結設定。
 
 建議後續：
-1. 接入正式 App Store / Play Store 版本查詢與商店連結。
+1. 接入正式 App Store / Play Store 版本查詢；商店連結已可用 `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` 設定。
 2. 若要啟用真正匯率換算，需補匯率來源、缺值 fallback 與歷史匯率測試。
 3. 補更接近真機的 iOS / Android QA 驗證與截圖素材流程。
 

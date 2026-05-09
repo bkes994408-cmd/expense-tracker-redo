@@ -14,6 +14,10 @@ test-results
 .local-jdks
 android/**/build
 *.local
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # Editor directories and files
 .vscode/*

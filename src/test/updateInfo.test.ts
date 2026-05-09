@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createVersionInfo, formatDataUpdateTime, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdatePolicy, getUpdateStatus, normalizeStoreUrl } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -38,6 +38,27 @@ describe('updateInfo helpers', () => {
 
   it('summarizes store placeholder availability honestly', () => {
     expect(getStoreAvailabilitySummary()).toContain('正式上架後啟用');
+  });
+
+
+  it('normalizes only secure store URLs for outbound update links', () => {
+    expect(normalizeStoreUrl(' https://apps.apple.com/app/example ')).toBe('https://apps.apple.com/app/example');
+    expect(normalizeStoreUrl('http://apps.apple.com/app/example')).toBeUndefined();
+    expect(normalizeStoreUrl('not-a-url')).toBeUndefined();
+  });
+
+  it('builds store links from Vite env without pretending missing links are ready', () => {
+    const links = createStoreLinks({
+      VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo',
+      VITE_PLAY_STORE_URL: '',
+    });
+
+    expect(links).toEqual([
+      expect.objectContaining({ target: 'appStore', label: 'App Store', status: 'ready', envKey: 'VITE_APP_STORE_URL', url: 'https://apps.apple.com/app/expense-tracker-redo' }),
+      expect.objectContaining({ target: 'playStore', label: 'Play Store', status: 'placeholder', envKey: 'VITE_PLAY_STORE_URL', url: undefined }),
+    ]);
+    expect(getStoreAvailabilitySummary(links)).toContain('已啟用 App Store 更新連結');
+    expect(getPrimaryReadyStoreLink(links)?.target).toBe('appStore');
   });
 
   it('summarizes local backup context for safe migration copy', () => {
