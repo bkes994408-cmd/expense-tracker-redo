@@ -158,6 +158,10 @@ Settings 增加「檢查更新」。
 - 使用 `VITE_UPDATE_MANIFEST_URL` 設定遠端版本 manifest 來源。
 - 已建立 `latestVersion` / `minimumSupportedVersion` 判定模型；未設定時回落本機 release notes。
 
+已落地（U12）：
+- Settings 點擊「檢查更新」時會實際查詢遠端 manifest。
+- 支援 timeout、payload validation、HTTP/schema error fallback，遠端失敗不阻塞核心功能。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 

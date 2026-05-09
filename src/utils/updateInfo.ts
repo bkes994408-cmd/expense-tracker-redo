@@ -32,6 +32,24 @@ export type RemoteUpdateManifest = {
   message?: string;
 };
 
+export type UpdateStatusSummary = { level: UpdateLevel; label: string; detail: string };
+
+export type UpdateManifestFetchResult = {
+  status: 'not-configured' | 'success' | 'error';
+  source: UpdateManifestSource;
+  updateStatus: UpdateStatusSummary;
+  summary: string;
+  manifest?: RemoteUpdateManifest;
+  errorMessage?: string;
+};
+
+export type UpdateManifestFetcher = (url: string, init?: RequestInit) => Promise<{
+  ok: boolean;
+  status: number;
+  statusText?: string;
+  json: () => Promise<unknown>;
+}>;
+
 export type StoreLink = {
   target: StoreTarget;
   label: string;
@@ -53,7 +71,7 @@ export type UpdatePolicy = {
 
 export type UpdateDiagnosticsInput = {
   versionInfo: VersionInfo;
-  updateStatus: { level: UpdateLevel; label: string; detail: string };
+  updateStatus: UpdateStatusSummary;
   updatePolicy: UpdatePolicy;
   storeSummary: string;
   updateManifestSummary?: string;
@@ -119,6 +137,43 @@ export function createUpdateManifestSource(env: StoreLinkEnv = import.meta.env a
 export function getUpdateManifestAvailabilitySummary(source = createUpdateManifestSource()): string {
   if (source.status === 'ready') return `遠端版本 manifest 已設定：${source.envKey}`;
   return `遠端版本 manifest 尚未設定（${source.envKey}），目前使用本機 release notes 判定。`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isRemoteUpdateLevel(value: unknown): value is Exclude<UpdateLevel, 'current'> {
+  return value === 'optional' || value === 'recommended' || value === 'required';
+}
+
+export function parseRemoteUpdateManifest(value: unknown): RemoteUpdateManifest | undefined {
+  if (!isRecord(value) || !isNonEmptyString(value.latestVersion)) return undefined;
+
+  const manifest: RemoteUpdateManifest = {
+    latestVersion: value.latestVersion.trim(),
+  };
+
+  if (value.minimumSupportedVersion !== undefined) {
+    if (!isNonEmptyString(value.minimumSupportedVersion)) return undefined;
+    manifest.minimumSupportedVersion = value.minimumSupportedVersion.trim();
+  }
+
+  if (value.level !== undefined) {
+    if (!isRemoteUpdateLevel(value.level)) return undefined;
+    manifest.level = value.level;
+  }
+
+  if (value.message !== undefined) {
+    if (!isNonEmptyString(value.message)) return undefined;
+    manifest.message = value.message.trim();
+  }
+
+  return manifest;
 }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
@@ -203,7 +258,7 @@ function getUpdateLabel(level: Exclude<UpdateLevel, 'current'>): string {
       : '可選更新';
 }
 
-export function getUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, latest = RELEASE_NOTES[0]): { level: UpdateLevel; label: string; detail: string } {
+export function getUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, latest = RELEASE_NOTES[0]): UpdateStatusSummary {
   if (!latest || compareSemverLike(versionInfo.appVersion, latest.version) >= 0) {
     return { level: 'current', label: '已是目前版本', detail: '目前沒有需要安裝的更新。' };
   }
@@ -215,7 +270,7 @@ export function getUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, la
   };
 }
 
-export function getManifestUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, manifest?: RemoteUpdateManifest): { level: UpdateLevel; label: string; detail: string } {
+export function getManifestUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersion'>, manifest?: RemoteUpdateManifest): UpdateStatusSummary {
   if (!manifest) return getUpdateStatus(versionInfo);
 
   if (manifest.minimumSupportedVersion && compareSemverLike(versionInfo.appVersion, manifest.minimumSupportedVersion) < 0) {
@@ -236,6 +291,79 @@ export function getManifestUpdateStatus(versionInfo: Pick<VersionInfo, 'appVersi
   }
 
   return { level: 'current', label: '已是目前版本', detail: `目前版本 ${versionInfo.appVersion} 已符合遠端最新版本 ${manifest.latestVersion}。` };
+}
+
+function getFetchErrorMessage(error: unknown, timeoutMs: number): string {
+  if (isRecord(error) && error.name === 'AbortError') return `查詢逾時（${timeoutMs}ms）`;
+  if (error instanceof Error && error.message) return error.message;
+  return '未知錯誤';
+}
+
+export async function fetchRemoteUpdateManifest(
+  source: UpdateManifestSource,
+  versionInfo: Pick<VersionInfo, 'appVersion'>,
+  options: { fetcher?: UpdateManifestFetcher; timeoutMs?: number } = {},
+): Promise<UpdateManifestFetchResult> {
+  const localStatus = getUpdateStatus(versionInfo);
+
+  if (source.status !== 'ready' || !source.url) {
+    return {
+      status: 'not-configured',
+      source,
+      updateStatus: localStatus,
+      summary: getUpdateManifestAvailabilitySummary(source),
+    };
+  }
+
+  const timeoutMs = options.timeoutMs ?? 4000;
+  const fetcher = options.fetcher ?? globalThis.fetch?.bind(globalThis);
+  if (!fetcher) {
+    return {
+      status: 'error',
+      source,
+      updateStatus: localStatus,
+      summary: '遠端版本 manifest 查詢失敗，已回落本機 release notes。',
+      errorMessage: '目前環境沒有 fetch API。',
+    };
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+  const timeoutId = controller && timeoutMs > 0 ? globalThis.setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+  try {
+    const response = await fetcher(source.url, {
+      signal: controller?.signal,
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`);
+    }
+
+    const payload = await response.json();
+    const manifest = parseRemoteUpdateManifest(payload);
+    if (!manifest) throw new Error('manifest 格式不正確');
+
+    const updateStatus = getManifestUpdateStatus(versionInfo, manifest);
+    const minimumText = manifest.minimumSupportedVersion ? `，最低支援版本 ${manifest.minimumSupportedVersion}` : '';
+    return {
+      status: 'success',
+      source,
+      manifest,
+      updateStatus,
+      summary: `遠端版本 manifest 查詢成功：最新版本 ${manifest.latestVersion}${minimumText}。`,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      source,
+      updateStatus: localStatus,
+      summary: '遠端版本 manifest 查詢失敗，已回落本機 release notes。',
+      errorMessage: getFetchErrorMessage(error, timeoutMs),
+    };
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+  }
 }
 
 export function getUpdatePolicy(level: UpdateLevel): UpdatePolicy {

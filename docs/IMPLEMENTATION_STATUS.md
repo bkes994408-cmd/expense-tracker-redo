@@ -1,5 +1,28 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U12）
+
+## 0) 本輪完成（Update Feature U12：遠端更新 manifest 查詢）
+
+### U12. Remote update manifest fetch + fallback
+- `src/utils/updateInfo.ts`
+  - 新增 `parseRemoteUpdateManifest()` 與 `fetchRemoteUpdateManifest()`，實作遠端 manifest fetch、`https://` 來源驗證、timeout / abort 與錯誤 fallback。
+  - 遠端 payload 支援 `latestVersion`、`minimumSupportedVersion`、`level`、`message`，並用既有 `getManifestUpdateStatus()` 判定 current / optional / recommended / required。
+  - 遠端失敗、HTTP error、JSON schema 無效或未設定 manifest 時，會回落本機 release notes，不阻塞核心功能。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings「檢查更新」點擊後才查遠端 manifest。
+  - UI 顯示查詢中、遠端成功、遠端失敗或未設定狀態；失敗時顯示錯誤並保留本機 fallback。
+  - 更新診斷會帶入當次 manifest 查詢摘要。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 manifest parser、fetch success、fetch failure fallback、未設定 skip fetch 與 Settings UI 測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 152 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U11）
 
 ## 0) 本輪完成（Update Feature U11：遠端更新 manifest 基礎）
