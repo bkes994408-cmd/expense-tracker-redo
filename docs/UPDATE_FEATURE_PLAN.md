@@ -154,6 +154,10 @@ Settings 增加「檢查更新」。
 - 使用 `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` 設定商店連結。
 - 只接受 `https://` URL；未設定時維持「上架後啟用」。
 
+已落地（U11）：
+- 使用 `VITE_UPDATE_MANIFEST_URL` 設定遠端版本 manifest 來源。
+- 已建立 `latestVersion` / `minimumSupportedVersion` 判定模型；未設定時回落本機 release notes。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 
