@@ -7,6 +7,7 @@ import type { SettingsPageProps } from '../pageTypes';
 import { getCsvFilename } from '../../utils/csv';
 import { CURRENCY_SYMBOL } from '../../utils/format';
 import { createCurrencyDisplayContext, getDisplayCurrencySemanticHint } from '../../utils/currencyDisplay';
+import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePolicy';
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
@@ -59,7 +60,9 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const [updateCheckOpen, setUpdateCheckOpen] = useState(false);
   const clearKeyword = 'CLEAR';
   const isClearKeywordMatched = clearConfirmText.trim().toUpperCase() === clearKeyword;
-  const currencySemanticHint = getDisplayCurrencySemanticHint(createCurrencyDisplayContext(currency));
+  const currencyContext = useMemo(() => createCurrencyDisplayContext(currency), [currency]);
+  const currencySemanticHint = getDisplayCurrencySemanticHint(currencyContext);
+  const exchangeRateSummary = useMemo(() => createExchangeRateReadinessSummary(currencyContext), [currencyContext]);
   const versionInfo = useMemo(() => createVersionInfo(), []);
   const updateStatus = useMemo(() => getUpdateStatus(versionInfo), [versionInfo]);
   const updatePolicy = useMemo(() => getUpdatePolicy(updateStatus.level), [updateStatus.level]);
@@ -186,6 +189,16 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
       <Sec title="偏好設定" delay={60} t={t} r={r}>
         <Row C={Wallet} label="預設幣別" t={t} r={r} f={f} onClick={() => setPicker('currency')} right={<span style={{ fontSize: '12px', color: t.secondary }}>{CURRENCY_LABEL[currency]} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
         <div style={{ padding: '0 14px 10px', fontSize: '10px', color: t.secondary }}>{currencySemanticHint}</div>
+        <div style={{ padding: '0 14px 10px' }}>
+          <RiskNotice
+            ariaLabel="匯率資料狀態"
+            title={exchangeRateSummary.headline}
+            body={exchangeRateSummary.detail}
+            tone={exchangeRateSummary.conversionActive ? 'neutral' : 'warn'}
+            t={t}
+            r={r}
+          />
+        </div>
         <Row C={Calendar} label="每月起始日" t={t} r={r} f={f} onClick={() => setPicker('monthStart')} right={<span style={{ fontSize: '12px', color: t.secondary }}>{monthStartDay} 日 <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
         <Row C={Bell} label="帳單提醒" t={t} r={r} f={f} noBorder right={<Toggle on={billReminder} onToggle={() => setBillReminder(!billReminder)} t={t} />} />
       </Sec>

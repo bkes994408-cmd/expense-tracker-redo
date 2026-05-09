@@ -730,6 +730,9 @@ describe('interaction', () => {
     fireEvent.click(screen.getByText('質感設計'));
     fireEvent.click(screen.getByText('預設幣別'));
     fireEvent.click(screen.getByLabelText('選擇幣別USD'));
+    expect(screen.getByLabelText('匯率資料狀態')).toHaveTextContent('目前不自動換算');
+    expect(screen.getByLabelText('匯率資料狀態')).toHaveTextContent('尚未設定匯率來源');
+    expect(screen.getByLabelText('匯率資料狀態')).toHaveTextContent('只切換符號與格式');
     fireEvent.click(screen.getByText('每月起始日'));
     fireEvent.click(screen.getByLabelText('選擇每月起始日15'));
     fireEvent.click(screen.getByText('全部'));
