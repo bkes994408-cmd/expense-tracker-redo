@@ -687,7 +687,8 @@ describe('interaction', () => {
     expect(onRecDelete).toHaveBeenCalledWith(1);
   });
 
-  it('SettingsPage 所有可見 row 皆可互動', () => {
+  it('SettingsPage 所有可見 row 皆可互動', async () => {
+    vi.useRealTimers();
     const setStyle = vi.fn();
     const setMode = vi.fn();
     const setCurrency = vi.fn();
@@ -788,6 +789,8 @@ describe('interaction', () => {
     expect(screen.getByLabelText('正式商店版本查詢前置檢查')).toHaveTextContent('正式查詢前置：待設定');
     expect(screen.getByLabelText('正式商店版本查詢前置檢查')).toHaveTextContent('遠端 manifest fallback：待補');
     expect(screen.getByLabelText('商店版本查詢優先序')).toHaveTextContent('本機 release notes');
+    await screen.findByText(/版本查詢結果：本機 release notes/);
+    expect(screen.getByLabelText('商店版本查詢結果')).toHaveTextContent('Attempts：本機 release notes=success');
     expect(screen.getAllByText(/尚無本機復原點/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: '知道了' }));
     expect(screen.queryByRole('dialog', { name: '檢查更新結果' })).not.toBeInTheDocument();

@@ -1,5 +1,27 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-11（更新功能 U22）
+
+## 0) 本輪完成（Update Feature U22：Settings 手動檢查接入商店查詢 mock flow）
+
+### U22. Settings store query mock flow
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings「檢查更新」流程會同步執行商店版本查詢 mock flow。
+  - 真實商店 API 仍保持關閉；若商店連結已設定，也只會使用 mock fetcher 記錄 attempt，再依 fallback 往下查詢。
+  - 檢查更新彈窗新增「商店版本查詢結果」，顯示 attempts 與最後採用來源。
+- `src/utils/updateInfo.ts`
+  - 新增 `StoreVersionQueryRun` 與 `createStoreVersionQueryAttemptSummary()`，統一呈現 mock adapter attempts。
+  - 更新診斷文字會附上商店查詢結果與 attempts，方便後續接真實商店 API 前比對。
+- `src/test/interaction.test.tsx`、`src/test/updateInfo.test.ts`
+  - 補 Settings 手動檢查顯示 mock 查詢結果、診斷 attempts summary 測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 161 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U21）
 
 ## 0) 本輪完成（Update Feature U21：正式商店版本查詢 mock adapter）

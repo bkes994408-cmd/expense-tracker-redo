@@ -11,8 +11,8 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
-import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createStoreVersionQueryAttemptSummary, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, fetchStoreVersionQueryPlan, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
+import type { StoreVersionQueryRun, UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
@@ -30,6 +30,11 @@ type ManifestCheckState =
   | { status: 'idle' }
   | { status: 'checking' }
   | UpdateManifestFetchResult;
+
+type StoreVersionQueryState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | ({ status: 'done' } & StoreVersionQueryRun);
 
 const UPDATE_REMINDER_STORAGE_KEY = 'expense-tracker-redo-update-reminder';
 
@@ -67,6 +72,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [updateCheckOpen, setUpdateCheckOpen] = useState(false);
   const [manifestCheck, setManifestCheck] = useState<ManifestCheckState>({ status: 'idle' });
+  const [storeVersionQuery, setStoreVersionQuery] = useState<StoreVersionQueryState>({ status: 'idle' });
   const [updateReminderPreference, setUpdateReminderPreference] = useState<UpdateReminderPreference | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -118,11 +124,12 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     updateManifestSummary: manifestCheckSummary,
     storeVersionQueryPreflight,
     storeVersionQueryPlan,
+    storeVersionQueryRun: storeVersionQuery.status === 'done' ? storeVersionQuery : undefined,
     backupStatusLabel: backupStatus.label,
     backupStatusDetail: backupStatus.detail,
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
-  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, storeVersionQueryPlan, storeVersionQueryPreflight, versionInfo]);
+  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, storeVersionQuery, storeVersionQueryPlan, storeVersionQueryPreflight, versionInfo]);
   const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
   const syncStatus = useMemo(() => createSyncStatusSummary({
     localTransactionCount: allTransactionCount,
@@ -210,22 +217,35 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     }
   }
 
+  function runStoreVersionQuery(manifestResult: UpdateManifestFetchResult) {
+    setStoreVersionQuery({ status: 'checking' });
+    void fetchStoreVersionQueryPlan(storeVersionQueryPlan, storeLinks, {
+      manifestResult,
+      fetcher: async () => ({ ok: false, status: 501, statusText: 'Mock adapter only', json: async () => ({}) }),
+    }).then((run) => setStoreVersionQuery({ status: 'done', ...run }));
+  }
+
   function handleOpenUpdateCheck() {
     setUpdateCheckOpen(true);
+    setStoreVersionQuery({ status: 'idle' });
 
     if (updateManifestSource.status !== 'ready') {
-      setManifestCheck({
+      const manifestResult: UpdateManifestFetchResult = {
         status: 'not-configured',
         source: updateManifestSource,
         updateStatus: localUpdateStatus,
         summary: updateManifestSummary,
-      });
+      };
+      setManifestCheck(manifestResult);
+      runStoreVersionQuery(manifestResult);
       return;
     }
 
     setManifestCheck({ status: 'checking' });
+    setStoreVersionQuery({ status: 'checking' });
     void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then((result) => {
       setManifestCheck(result);
+      runStoreVersionQuery(result);
       const policy = getUpdatePolicy(result.updateStatus.level);
       if (policy.level === 'required' && !policy.canUseCoreApp) {
         onRequiredUpdateProtectionChange?.(true);
@@ -833,6 +853,13 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
                 ))}
               </div>
               <div aria-label="商店版本查詢優先序" style={{ marginTop: '8px', color: t.primary }}>{createStoreVersionQueryFallbackSummary(storeVersionQueryPlan)}</div>
+              <div aria-label="商店版本查詢結果" style={{ marginTop: '6px', color: t.secondary }}>
+                {storeVersionQuery.status === 'checking'
+                  ? 'mock adapter 查詢中…'
+                  : storeVersionQuery.status === 'done'
+                    ? createStoreVersionQueryAttemptSummary(storeVersionQuery)
+                    : '尚未執行 mock adapter 查詢。'}
+              </div>
             </div>
             <div aria-label="更新提醒狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
               {updateReminderSummary}
