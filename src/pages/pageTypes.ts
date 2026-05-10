@@ -81,6 +81,7 @@ export type SettingsPageProps = ThemedProps & {
   lastCsvExport?: CsvExportFeedback | null;
   onClearAllData: () => void;
   onRateApp: () => void;
+  requiredUpdateProtectionActive?: boolean;
 };
 
 export type AppScreen = AppTab;

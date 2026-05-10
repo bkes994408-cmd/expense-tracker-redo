@@ -793,6 +793,47 @@ describe('interaction', () => {
     expect(onRateApp).toHaveBeenCalled();
   });
 
+  it('SettingsPage 顯示必要更新保護狀態且保留資料出口', () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    });
+
+    render(
+      <SettingsPage
+        t={t}
+        r={r}
+        f={f}
+        style="minimal"
+        setStyle={vi.fn()}
+        mode="light"
+        setMode={vi.fn()}
+        currency="NTD"
+        setCurrency={vi.fn()}
+        monthStartDay={1}
+        setMonthStartDay={vi.fn()}
+        billReminder
+        setBillReminder={vi.fn()}
+        iCloudBackup={false}
+        setICloudBackup={vi.fn()}
+        exportCategories={['餐飲']}
+        getCsvExportCount={() => 1}
+        onExportCsv={vi.fn()}
+        onClearAllData={vi.fn()}
+        onRateApp={vi.fn()}
+        requiredUpdateProtectionActive
+      />,
+    );
+
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('必要更新保護已啟用');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('CSV 匯出');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('複製更新診斷');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('新增交易');
+    fireEvent.click(screen.getByRole('button', { name: '複製必要更新保護狀態' }));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('必要更新保護已啟用'));
+  });
+
   it('SettingsPage 清除資料流程支援取消、重開與最終清除', () => {
     const onClearAllData = vi.fn();
 
