@@ -845,6 +845,11 @@ describe('interaction', () => {
     expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('提醒到期');
     fireEvent.click(screen.getByText('檢查更新'));
     expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('入口狀態：提醒到期');
+
+    fireEvent.click(screen.getByRole('button', { name: '清除更新提醒偏好' }));
+    expect(storage.has('expense-tracker-redo-update-reminder')).toBe(false);
+    expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('未設定提醒');
+    expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('尚未設定更新提醒或略過版本');
   });
 
   it('SettingsPage 對 optional 更新可略過此版本並保留下版提醒', async () => {
