@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
 import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
@@ -236,6 +236,15 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     } catch {
       // localStorage may be unavailable in private contexts; UI state still reflects this session.
     }
+  }
+
+  function snoozeUpdateReminderPreference() {
+    const version = updateReminderPreference?.version ?? activeUpdateVersion;
+    const preference = createUpdateReminderPreference(getUpdatePolicy('recommended'), version);
+    if (!preference) return;
+    persistUpdateReminderPreference(preference);
+    setCopyFeedback('已再延後 24 小時提醒');
+    setTimeout(() => setCopyFeedback(''), 1800);
   }
 
   function clearUpdateReminderPreference() {
@@ -816,14 +825,26 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               <div style={{ marginTop: '4px', color: updateReminderBadge.tone === 'accent' ? t.accent : updateReminderBadge.tone === 'warn' ? t.negative : t.secondary }}>入口狀態：{updateReminderBadge.label}｜{updateReminderBadge.detail}</div>
               {activeUpdatePolicy.level === 'required' && <div style={{ marginTop: '4px', color: t.primary }}>必要更新不可略過，也不提供稍後提醒。</div>}
               {updateReminderPreference && activeUpdatePolicy.level !== 'required' && (
-                <button
-                  className="press"
-                  aria-label="清除更新提醒偏好"
-                  onClick={clearUpdateReminderPreference}
-                  style={{ marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  清除提醒偏好
-                </button>
+                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginTop: '8px' }}>
+                  {isUpdateReminderDue(updateReminderPreference) && (
+                    <button
+                      className="press"
+                      aria-label="再提醒24小時"
+                      onClick={snoozeUpdateReminderPreference}
+                      style={{ border: 'none', borderRadius: r.chip, padding: '6px 10px', background: t.chipActive, color: t.chipActiveText, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      再提醒 24 小時
+                    </button>
+                  )}
+                  <button
+                    className="press"
+                    aria-label="清除更新提醒偏好"
+                    onClick={clearUpdateReminderPreference}
+                    style={{ border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    清除提醒偏好
+                  </button>
+                </div>
               )}
             </div>
             <div style={{ display: 'grid', gap: '7px', fontSize: '11px', color: t.secondary, marginBottom: '12px' }}>

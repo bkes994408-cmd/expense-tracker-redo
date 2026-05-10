@@ -1,5 +1,24 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U18）
+
+## 0) 本輪完成（Update Feature U18：更新提醒重新設定快捷動線）
+
+### U18. Update reminder snooze shortcut
+- `src/pages/settings/SettingsPage.tsx`
+  - 提醒到期時，檢查更新彈窗新增「再提醒 24 小時」快捷按鈕。
+  - 點擊後會直接重建 recommended reminder preference，重新設定 `remindAfter`，不必先清除再重設。
+  - 入口 badge / 彈窗狀態會即時從「提醒到期」回到「稍後提醒」。
+- `src/test/interaction.test.tsx`
+  - 補提醒到期後一鍵再延後 24 小時、localStorage 更新、UI 狀態回復測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 157 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U17）
 
 ## 0) 本輪完成（Update Feature U17：更新提醒清除 / 重新設定流程）
