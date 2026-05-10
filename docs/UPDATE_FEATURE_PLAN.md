@@ -202,6 +202,11 @@ Settings 增加「檢查更新」。
 - 覆蓋 App Store mock 成功、商店失敗回落本機 release notes、商店失敗回落遠端 manifest。
 - 目前仍不接真實商店 API，先固定 adapter 合約與 fallback 行為。
 
+已落地（U22）：
+- Settings 手動「檢查更新」會執行商店版本查詢 mock flow。
+- 真實商店 API 仍關閉；商店來源只用 mock fetcher 記錄 attempt，再依 fallback 查詢。
+- 檢查更新彈窗與更新診斷會顯示 attempts 與最後採用來源。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 

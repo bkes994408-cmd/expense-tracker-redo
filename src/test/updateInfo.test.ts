@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, fetchStoreVersionQueryPlan, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest, parseStoreVersionQueryResult } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createStoreVersionQueryAttemptSummary, fetchStoreVersionQueryPlan, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest, parseStoreVersionQueryResult } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -219,6 +219,7 @@ describe('updateInfo helpers', () => {
     expect(fallback.attempts.map((attempt) => attempt.source)).toEqual(['appStore', 'playStore', 'local']);
     expect(fallback.attempts[0]).toEqual(expect.objectContaining({ status: 'error' }));
     expect(fallback.result).toEqual(expect.objectContaining({ source: 'local', status: 'success', latestVersion: RELEASE_NOTES[0].version }));
+    expect(createStoreVersionQueryAttemptSummary(fallback)).toContain('App Store=error → Play Store=error → 本機 release notes=success');
   });
 
   it('uses manifest fallback when mock store adapters fail', async () => {

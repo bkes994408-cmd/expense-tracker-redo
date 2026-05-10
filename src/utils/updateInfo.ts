@@ -87,6 +87,11 @@ export type StoreVersionQueryPlan = {
   summary: string;
 };
 
+export type StoreVersionQueryRun = {
+  result: StoreVersionQueryResult;
+  attempts: StoreVersionQueryResult[];
+};
+
 export type StoreVersionQueryPreflightCheck = { label: string; status: 'ready' | 'missing'; detail: string };
 
 export type StoreVersionQueryPreflight = {
@@ -103,6 +108,7 @@ export type UpdateDiagnosticsInput = {
   updateManifestSummary?: string;
   storeVersionQueryPreflight?: StoreVersionQueryPreflight;
   storeVersionQueryPlan?: StoreVersionQueryPlan;
+  storeVersionQueryRun?: StoreVersionQueryRun;
   backupStatusLabel: string;
   backupStatusDetail: string;
   categoryRuleVersion: string;
@@ -276,6 +282,17 @@ export function createStoreVersionQueryFallbackSummary(plan: StoreVersionQueryPl
   return `版本查詢優先序：${plan.order.map((source) => labels[source]).join(' → ')}。`;
 }
 
+export function createStoreVersionQueryAttemptSummary(run: StoreVersionQueryRun): string {
+  const labels: Record<StoreVersionQueryResult['source'], string> = {
+    appStore: 'App Store',
+    playStore: 'Play Store',
+    manifest: '遠端 manifest',
+    local: '本機 release notes',
+  };
+  const attemptText = run.attempts.map((attempt) => `${labels[attempt.source]}=${attempt.status}`).join(' → ');
+  return `版本查詢結果：${labels[run.result.source]} / ${run.result.status}。Attempts：${attemptText}。`;
+}
+
 function getStoreSourceLabel(source: StoreTarget): string {
   return source === 'appStore' ? 'App Store' : 'Play Store';
 }
@@ -357,7 +374,7 @@ export async function fetchStoreVersionQueryPlan(
   plan: StoreVersionQueryPlan,
   storeLinks = STORE_LINKS,
   options: { fetcher?: StoreVersionQueryFetcher; manifestResult?: UpdateManifestFetchResult; timeoutMs?: number } = {},
-): Promise<{ result: StoreVersionQueryResult; attempts: StoreVersionQueryResult[] }> {
+): Promise<StoreVersionQueryRun> {
   const attempts: StoreVersionQueryResult[] = [];
 
   for (const source of plan.order) {
@@ -754,7 +771,7 @@ export function createLocalBackupSummary(versionInfo: VersionInfo): string {
 }
 
 export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): string {
-  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, storeVersionQueryPreflight, storeVersionQueryPlan, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
+  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, storeVersionQueryPreflight, storeVersionQueryPlan, storeVersionQueryRun, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
 
   return [
     'Expense Tracker Redo 更新診斷',
@@ -774,6 +791,7 @@ export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): stri
     ...(storeVersionQueryPreflight?.checks.map((check) => `- ${check.label}: ${check.status} — ${check.detail}`) ?? []),
     `Store query fallback: ${storeVersionQueryPlan ? createStoreVersionQueryFallbackSummary(storeVersionQueryPlan) : 'not planned'}`,
     ...(storeVersionQueryPlan ? [`Store query primary source: ${storeVersionQueryPlan.primarySource}`] : []),
+    ...(storeVersionQueryRun ? [`Store query result: ${createStoreVersionQueryAttemptSummary(storeVersionQueryRun)}`] : []),
     `Recovery point: ${backupStatusLabel}`,
     `Recovery detail: ${backupStatusDetail}`,
     `Category rule version: ${categoryRuleVersion}`,
