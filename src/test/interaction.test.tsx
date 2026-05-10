@@ -846,6 +846,11 @@ describe('interaction', () => {
     fireEvent.click(screen.getByText('檢查更新'));
     expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('入口狀態：提醒到期');
 
+    fireEvent.click(screen.getByRole('button', { name: '再提醒24小時' }));
+    expect(window.localStorage.getItem('expense-tracker-redo-update-reminder')).toContain('remind-later');
+    expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('稍後提醒');
+    expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('入口狀態：稍後提醒');
+
     fireEvent.click(screen.getByRole('button', { name: '清除更新提醒偏好' }));
     expect(storage.has('expense-tracker-redo-update-reminder')).toBe(false);
     expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('未設定提醒');
