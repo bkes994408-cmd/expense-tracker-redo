@@ -50,6 +50,8 @@ export type UpdateManifestFetcher = (url: string, init?: RequestInit) => Promise
   json: () => Promise<unknown>;
 }>;
 
+export type StoreVersionQueryFetcher = UpdateManifestFetcher;
+
 export type StoreLink = {
   target: StoreTarget;
   label: string;
@@ -272,6 +274,114 @@ export function createStoreVersionQueryFallbackSummary(plan: StoreVersionQueryPl
     local: '本機 release notes',
   };
   return `版本查詢優先序：${plan.order.map((source) => labels[source]).join(' → ')}。`;
+}
+
+function getStoreSourceLabel(source: StoreTarget): string {
+  return source === 'appStore' ? 'App Store' : 'Play Store';
+}
+
+export async function fetchStoreVersionQuery(
+  storeLink: StoreLink | undefined,
+  options: { fetcher?: StoreVersionQueryFetcher; timeoutMs?: number } = {},
+): Promise<StoreVersionQueryResult> {
+  if (!storeLink || storeLink.status !== 'ready' || !storeLink.url) {
+    return {
+      source: storeLink?.target ?? 'local',
+      status: 'not-configured',
+      summary: `${storeLink?.label ?? '商店'} 查詢尚未設定。`,
+    };
+  }
+
+  const timeoutMs = options.timeoutMs ?? 4000;
+  const fetcher = options.fetcher ?? globalThis.fetch?.bind(globalThis);
+  const label = getStoreSourceLabel(storeLink.target);
+  if (!fetcher) {
+    return { source: storeLink.target, status: 'error', summary: `${label} 查詢失敗。`, errorMessage: '目前環境沒有 fetch API。' };
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+  const timeoutId = controller && timeoutMs > 0 ? globalThis.setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+  try {
+    const response = await fetcher(storeLink.url, {
+      signal: controller?.signal,
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`);
+    const parsed = parseStoreVersionQueryResult(storeLink.target, await response.json());
+    if (!parsed) throw new Error('store version query 格式不正確');
+    return parsed;
+  } catch (error) {
+    return {
+      source: storeLink.target,
+      status: 'error',
+      summary: `${label} 查詢失敗，將依 fallback 優先序往下查詢。`,
+      errorMessage: getFetchErrorMessage(error, timeoutMs),
+    };
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+  }
+}
+
+function createManifestStoreVersionResult(result: UpdateManifestFetchResult): StoreVersionQueryResult {
+  if (result.status === 'success' && result.manifest) {
+    return {
+      source: 'manifest',
+      status: 'success',
+      latestVersion: result.manifest.latestVersion,
+      minimumSupportedVersion: result.manifest.minimumSupportedVersion,
+      level: result.manifest.level,
+      summary: `遠端 manifest fallback 成功：最新版本 ${result.manifest.latestVersion}。`,
+    };
+  }
+
+  return {
+    source: 'manifest',
+    status: result.status === 'not-configured' ? 'not-configured' : 'error',
+    summary: result.summary,
+    errorMessage: result.errorMessage,
+  };
+}
+
+function createLocalStoreVersionResult(latest = RELEASE_NOTES[0]): StoreVersionQueryResult {
+  return {
+    source: 'local',
+    status: 'success',
+    latestVersion: latest?.version,
+    level: latest?.level,
+    summary: `已回落本機 release notes：最新版本 ${latest?.version ?? '未知'}。`,
+  };
+}
+
+export async function fetchStoreVersionQueryPlan(
+  plan: StoreVersionQueryPlan,
+  storeLinks = STORE_LINKS,
+  options: { fetcher?: StoreVersionQueryFetcher; manifestResult?: UpdateManifestFetchResult; timeoutMs?: number } = {},
+): Promise<{ result: StoreVersionQueryResult; attempts: StoreVersionQueryResult[] }> {
+  const attempts: StoreVersionQueryResult[] = [];
+
+  for (const source of plan.order) {
+    if (source === 'local') {
+      const result = createLocalStoreVersionResult();
+      attempts.push(result);
+      return { result, attempts };
+    }
+
+    if (source === 'manifest') {
+      const result = options.manifestResult ? createManifestStoreVersionResult(options.manifestResult) : { source: 'manifest' as const, status: 'not-configured' as const, summary: '遠端 manifest 尚未執行，略過至本機 release notes。' };
+      attempts.push(result);
+      if (result.status === 'success') return { result, attempts };
+      continue;
+    }
+
+    const result = await fetchStoreVersionQuery(storeLinks.find((link) => link.target === source), options);
+    attempts.push(result);
+    if (result.status === 'success') return { result, attempts };
+  }
+
+  const result = createLocalStoreVersionResult();
+  attempts.push(result);
+  return { result, attempts };
 }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
