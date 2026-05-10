@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus } from '../../utils/updateInfo';
 import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
@@ -98,6 +98,8 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     ? manifestCheck.summary
     : updateManifestSummary;
   const updateReminderSummary = useMemo(() => getUpdateReminderPreferenceSummary(updateReminderPreference), [updateReminderPreference]);
+  const updateReminderBadgeVersion = manifestCheck.status === 'success' ? activeUpdateVersion : updateReminderPreference?.version;
+  const updateReminderBadge = useMemo(() => createUpdateReminderBadge(updateReminderPreference, updateReminderBadgeVersion), [updateReminderBadgeVersion, updateReminderPreference]);
   const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
   const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
   const backupStatus = useMemo(() => getMigrationBackupStatus({
@@ -535,7 +537,20 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
           </div>
         </div>
         <Row C={FileText} label="更新內容" t={t} r={r} f={f} onClick={() => setReleaseNotesOpen(true)} right={<span style={{ fontSize: '12px', color: t.secondary }}>最近 {RELEASE_NOTES.length} 筆 <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
-        <Row C={RefreshCw} label="檢查更新" t={t} r={r} f={f} onClick={handleOpenUpdateCheck} right={<span style={{ fontSize: '12px', color: activeUpdateStatus.level === 'current' ? t.secondary : t.accent }}>{activeUpdateStatus.label} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>} />
+        <Row
+          C={RefreshCw}
+          label="檢查更新"
+          t={t}
+          r={r}
+          f={f}
+          onClick={handleOpenUpdateCheck}
+          right={
+            <span aria-label="更新入口狀態" style={{ display: 'grid', gap: '2px', justifyItems: 'end', textAlign: 'right' }}>
+              <span style={{ fontSize: '12px', color: activeUpdateStatus.level === 'current' ? t.secondary : t.accent }}>{activeUpdateStatus.label} <Ico C={ChevronRight} size={14} color={t.tertiary} sw={2} /></span>
+              <span style={{ fontSize: '10px', color: updateReminderBadge.tone === 'accent' ? t.accent : updateReminderBadge.tone === 'warn' ? t.negative : t.secondary }}>{updateReminderBadge.label}</span>
+            </span>
+          }
+        />
         <div style={{ padding: '0 14px 10px 58px', borderBottom: `1px solid ${t.divider}` }}>
           <RiskNotice ariaLabel="更新安全提醒" title="安全更新策略" body={backupSummary} t={t} r={r} />
         </div>
@@ -787,6 +802,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
             </div>
             <div aria-label="更新提醒狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
               {updateReminderSummary}
+              <div style={{ marginTop: '4px', color: updateReminderBadge.tone === 'accent' ? t.accent : updateReminderBadge.tone === 'warn' ? t.negative : t.secondary }}>入口狀態：{updateReminderBadge.label}｜{updateReminderBadge.detail}</div>
               {activeUpdatePolicy.level === 'required' && <div style={{ marginTop: '4px', color: t.primary }}>必要更新不可略過，也不提供稍後提醒。</div>}
             </div>
             <div style={{ display: 'grid', gap: '7px', fontSize: '11px', color: t.secondary, marginBottom: '12px' }}>

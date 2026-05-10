@@ -845,11 +845,16 @@ describe('interaction', () => {
 
     fireEvent.click(screen.getByText('檢查更新'));
     await screen.findByText(/遠端最新版本 1.0.1/);
+    expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('未設定提醒');
     expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('尚未設定更新提醒或略過版本');
 
     fireEvent.click(screen.getByRole('button', { name: '略過' }));
     expect(window.localStorage.getItem('expense-tracker-redo-update-reminder')).toContain('skip-version');
     expect(window.localStorage.getItem('expense-tracker-redo-update-reminder')).toContain('1.0.1');
+
+    fireEvent.click(screen.getByText('檢查更新'));
+    expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('已略過 v1.0.1');
+    expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('入口狀態：已略過 v1.0.1');
   });
 
   it('SettingsPage 手動檢查到 required update 會通知 App 層啟用保護', async () => {

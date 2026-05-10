@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -37,6 +37,9 @@ describe('updateInfo helpers', () => {
     expect(optional).toEqual(expect.objectContaining({ action: 'skip-version', version: '1.0.1' }));
     expect(createUpdateReminderPreference(getUpdatePolicy('required'), '1.0.3', now)).toBeUndefined();
     expect(getUpdateReminderPreferenceSummary(optional)).toContain('已略過版本 1.0.1');
+    expect(createUpdateReminderBadge(optional, '1.0.1')).toEqual(expect.objectContaining({ label: '已略過 v1.0.1', tone: 'neutral' }));
+    expect(createUpdateReminderBadge(recommended, '1.0.2')).toEqual(expect.objectContaining({ label: '稍後提醒', tone: 'accent' }));
+    expect(createUpdateReminderBadge(optional, '1.0.2')).toEqual(expect.objectContaining({ label: '有新版本', tone: 'accent' }));
   });
 
   it('defines required update behavior without blocking data export', () => {
