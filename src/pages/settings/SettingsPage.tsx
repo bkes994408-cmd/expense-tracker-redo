@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
 import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
@@ -88,6 +88,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
   const updateManifestSource = useMemo(() => updateManifestSourceOverride ?? createUpdateManifestSource(), [updateManifestSourceOverride]);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
+  const storeVersionQueryPreflight = useMemo(() => createStoreVersionQueryPreflight(updateManifestSource, storeLinks), [storeLinks, updateManifestSource]);
   const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
   const activeUpdateVersion = manifestCheck.status === 'success'
     ? manifestCheck.manifest?.latestVersion ?? RELEASE_NOTES[0]?.version ?? versionInfo.appVersion
@@ -114,11 +115,12 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     updatePolicy: activeUpdatePolicy,
     storeSummary,
     updateManifestSummary: manifestCheckSummary,
+    storeVersionQueryPreflight,
     backupStatusLabel: backupStatus.label,
     backupStatusDetail: backupStatus.detail,
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
-  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, versionInfo]);
+  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, storeVersionQueryPreflight, versionInfo]);
   const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
   const syncStatus = useMemo(() => createSyncStatusSummary({
     localTransactionCount: allTransactionCount,
@@ -819,6 +821,15 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
                   <span>{link.status === 'ready' ? `已啟用（${link.envKey}）` : `上架後啟用（${link.envKey}）`}</span>
                 </div>
               ))}
+            </div>
+            <div aria-label="正式商店版本查詢前置檢查" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
+              <div style={{ color: storeVersionQueryPreflight.status === 'ready' ? t.accent : storeVersionQueryPreflight.status === 'partial' ? t.primary : t.secondary, fontWeight: 800, marginBottom: '4px' }}>正式查詢前置：{storeVersionQueryPreflight.status === 'ready' ? '已齊備' : storeVersionQueryPreflight.status === 'partial' ? '部分就緒' : '待設定'}</div>
+              <div>{storeVersionQueryPreflight.summary}</div>
+              <div style={{ display: 'grid', gap: '3px', marginTop: '6px' }}>
+                {storeVersionQueryPreflight.checks.map((check) => (
+                  <div key={check.label}>• {check.label}：{check.status === 'ready' ? '已就緒' : '待補'} — {check.detail}</div>
+                ))}
+              </div>
             </div>
             <div aria-label="更新提醒狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
               {updateReminderSummary}

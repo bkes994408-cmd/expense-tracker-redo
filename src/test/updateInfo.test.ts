@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -160,6 +160,23 @@ describe('updateInfo helpers', () => {
     expect(getPrimaryReadyStoreLink(links)?.target).toBe('appStore');
   });
 
+  it('summarizes official store version query preflight gaps', () => {
+    const partial = createStoreVersionQueryPreflight(
+      createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+      createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: '' }),
+    );
+    const ready = createStoreVersionQueryPreflight(
+      createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+      createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: 'https://play.google.com/store/apps/details?id=app.expense' }),
+    );
+
+    expect(partial.status).toBe('partial');
+    expect(partial.summary).toContain('Play Store 更新連結');
+    expect(partial.checks).toEqual(expect.arrayContaining([expect.objectContaining({ label: '遠端 manifest fallback', status: 'ready' })]));
+    expect(ready.status).toBe('ready');
+    expect(ready.summary).toContain('前置設定已齊');
+  });
+
   it('summarizes local backup context for safe migration copy', () => {
     const info = createVersionInfo();
     const summary = createLocalBackupSummary(info);
@@ -177,6 +194,10 @@ describe('updateInfo helpers', () => {
       updateStatus,
       updatePolicy,
       storeSummary: getStoreAvailabilitySummary(),
+      storeVersionQueryPreflight: createStoreVersionQueryPreflight(
+        createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+        createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: '' }),
+      ),
       backupStatusLabel: '尚無本機復原點',
       backupStatusDetail: '更新前若需要 migration，系統會先建立本機復原點。',
       categoryRuleVersion: 'category-test',
@@ -185,6 +206,8 @@ describe('updateInfo helpers', () => {
 
     expect(diagnostics).toContain('Expense Tracker Redo 更新診斷');
     expect(diagnostics).toContain('App version: 1.0.0');
+    expect(diagnostics).toContain('Store query preflight:');
+    expect(diagnostics).toContain('Play Store 更新連結: missing');
     expect(diagnostics).toContain('Recovery point: 尚無本機復原點');
     expect(diagnostics).toContain('Category rule version: category-test');
   });

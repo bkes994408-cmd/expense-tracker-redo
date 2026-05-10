@@ -69,12 +69,21 @@ export type UpdatePolicy = {
   message: string;
 };
 
+export type StoreVersionQueryPreflightCheck = { label: string; status: 'ready' | 'missing'; detail: string };
+
+export type StoreVersionQueryPreflight = {
+  status: 'ready' | 'partial' | 'blocked';
+  summary: string;
+  checks: StoreVersionQueryPreflightCheck[];
+};
+
 export type UpdateDiagnosticsInput = {
   versionInfo: VersionInfo;
   updateStatus: UpdateStatusSummary;
   updatePolicy: UpdatePolicy;
   storeSummary: string;
   updateManifestSummary?: string;
+  storeVersionQueryPreflight?: StoreVersionQueryPreflight;
   backupStatusLabel: string;
   backupStatusDetail: string;
   categoryRuleVersion: string;
@@ -537,12 +546,38 @@ export function getPrimaryReadyStoreLink(storeLinks = STORE_LINKS): StoreLink | 
   return storeLinks.find((link) => link.status === 'ready' && link.url);
 }
 
+export function createStoreVersionQueryPreflight(source = createUpdateManifestSource(), storeLinks = STORE_LINKS): StoreVersionQueryPreflight {
+  const checks: StoreVersionQueryPreflightCheck[] = [
+    {
+      label: '遠端 manifest fallback',
+      status: source.status === 'ready' ? 'ready' : 'missing',
+      detail: source.status === 'ready' ? `${source.envKey} 已設定，可作為商店查詢失敗時的 fallback。` : `${source.envKey} 尚未設定，正式查詢失敗時只能回本機 release notes。`,
+    },
+    ...storeLinks.map((link) => ({
+      label: `${link.label} 更新連結`,
+      status: link.status === 'ready' ? 'ready' as const : 'missing' as const,
+      detail: link.status === 'ready' ? `${link.envKey} 已設定，可導向商店頁。` : `${link.envKey} 尚未設定，需正式上架後補入 HTTPS 商店 URL。`,
+    })),
+  ];
+
+  const readyCount = checks.filter((check) => check.status === 'ready').length;
+  const status: StoreVersionQueryPreflight['status'] = readyCount === checks.length ? 'ready' : readyCount > 0 ? 'partial' : 'blocked';
+  const missingLabels = checks.filter((check) => check.status === 'missing').map((check) => check.label);
+  const summary = status === 'ready'
+    ? '正式商店版本查詢前置設定已齊，可進入 App Store / Play Store 查詢 API 接入。'
+    : status === 'partial'
+      ? `正式商店版本查詢前置設定尚未完整：待補 ${missingLabels.join('、')}。`
+      : '正式商店版本查詢前置設定尚未開始：需先設定遠端 manifest fallback 與商店 HTTPS 連結。';
+
+  return { status, summary, checks };
+}
+
 export function createLocalBackupSummary(versionInfo: VersionInfo): string {
   return `更新前會建立本機復原點：app ${versionInfo.appVersion} / build ${versionInfo.buildNumber} / schema v${versionInfo.schemaVersion}`;
 }
 
 export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): string {
-  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
+  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, storeVersionQueryPreflight, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
 
   return [
     'Expense Tracker Redo 更新診斷',
@@ -558,6 +593,8 @@ export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): stri
     `Export preserved: ${updatePolicy.mustKeepExportAvailable ? 'yes' : 'no'}`,
     `Store links: ${storeSummary}`,
     `Update manifest: ${updateManifestSummary ?? 'local release notes only'}`,
+    `Store query preflight: ${storeVersionQueryPreflight?.summary ?? 'not checked'}`,
+    ...(storeVersionQueryPreflight?.checks.map((check) => `- ${check.label}: ${check.status} — ${check.detail}`) ?? []),
     `Recovery point: ${backupStatusLabel}`,
     `Recovery detail: ${backupStatusDetail}`,
     `Category rule version: ${categoryRuleVersion}`,

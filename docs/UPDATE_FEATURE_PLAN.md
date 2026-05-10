@@ -187,6 +187,11 @@ Settings 增加「檢查更新」。
 - 提醒到期時，檢查更新彈窗可直接「再提醒 24 小時」。
 - 重新延後後會更新本機 reminder preference，入口與彈窗即時回到「稍後提醒」。
 
+已落地（U19）：
+- 新增正式 App Store / Play Store 版本查詢前置檢查。
+- 檢查項目包含遠端 manifest fallback、App Store 更新連結與 Play Store 更新連結。
+- 檢查更新彈窗與更新診斷會列出待補 env key，方便後續接正式商店查詢 API。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 
