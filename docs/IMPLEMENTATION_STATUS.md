@@ -1,5 +1,27 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U14）
+
+## 0) 本輪完成（Update Feature U14：更新提醒 / 略過 baseline）
+
+### U14. Update reminder and skip-version baseline
+- `src/utils/updateInfo.ts`
+  - 新增 `UpdateReminderPreference`、`createUpdateReminderPreference()` 與 `getUpdateReminderPreferenceSummary()`。
+  - `recommended` 會建立 24 小時後的稍後提醒；`optional` 可略過目前版本；`required` 不可略過也不提供稍後提醒。
+- `src/pages/settings/SettingsPage.tsx`
+  - 檢查更新彈窗新增「更新提醒狀態」。
+  - secondary action 會依更新等級儲存提醒偏好：recommended = 稍後提醒、optional = 略過此版本。
+  - 偏好保存於本機 `expense-tracker-redo-update-reminder`，下個版本仍會重新提醒。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補提醒偏好 helper、required 不可略過、optional 略過版本寫入本機儲存測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 156 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U13）
 
 ## 0) 本輪完成（Update Feature U13：required update 保護流程）

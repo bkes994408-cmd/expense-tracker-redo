@@ -90,6 +90,13 @@ export type RequiredUpdateProtectionSummary = {
   copyText: string;
 };
 
+export type UpdateReminderPreference = {
+  action: 'skip-version' | 'remind-later';
+  version: string;
+  updatedAt: string;
+  remindAfter?: string;
+};
+
 export const DATA_SCHEMA_VERSION = 5;
 export const UPDATE_MANIFEST_ENV_KEY = 'VITE_UPDATE_MANIFEST_URL' as const;
 
@@ -424,6 +431,31 @@ export function getUpdatePolicy(level: UpdateLevel): UpdatePolicy {
     mustKeepExportAvailable: true,
     message: '目前沒有需要安裝的更新。',
   };
+}
+
+export function createUpdateReminderPreference(policy: UpdatePolicy, version: string, now = new Date()): UpdateReminderPreference | undefined {
+  if (!version || policy.level === 'current' || policy.level === 'required') return undefined;
+
+  if (policy.level === 'recommended') {
+    return {
+      action: 'remind-later',
+      version,
+      updatedAt: now.toISOString(),
+      remindAfter: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  return {
+    action: 'skip-version',
+    version,
+    updatedAt: now.toISOString(),
+  };
+}
+
+export function getUpdateReminderPreferenceSummary(preference: UpdateReminderPreference | null | undefined): string {
+  if (!preference) return '尚未設定更新提醒或略過版本。';
+  if (preference.action === 'skip-version') return `已略過版本 ${preference.version}，下個版本仍會提醒。`;
+  return `已設定稍後提醒版本 ${preference.version}${preference.remindAfter ? `，提醒時間 ${preference.remindAfter}` : ''}。`;
 }
 
 export function createRequiredUpdateProtectionSummary(policy: UpdatePolicy): RequiredUpdateProtectionSummary {

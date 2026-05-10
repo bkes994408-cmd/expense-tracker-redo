@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -26,6 +26,17 @@ describe('updateInfo helpers', () => {
     expect(sameVersionStatus.level).toBe('current');
     expect(sameVersionStatus.label).toBe('已是目前版本');
     expect(newerVersionStatus.level).toBe('current');
+  });
+
+  it('creates reminder preferences only for optional and recommended updates', () => {
+    const now = new Date('2026-05-10T00:00:00.000Z');
+    const recommended = createUpdateReminderPreference(getUpdatePolicy('recommended'), '1.0.2', now);
+    const optional = createUpdateReminderPreference(getUpdatePolicy('optional'), '1.0.1', now);
+
+    expect(recommended).toEqual(expect.objectContaining({ action: 'remind-later', version: '1.0.2', remindAfter: '2026-05-11T00:00:00.000Z' }));
+    expect(optional).toEqual(expect.objectContaining({ action: 'skip-version', version: '1.0.1' }));
+    expect(createUpdateReminderPreference(getUpdatePolicy('required'), '1.0.3', now)).toBeUndefined();
+    expect(getUpdateReminderPreferenceSummary(optional)).toContain('已略過版本 1.0.1');
   });
 
   it('defines required update behavior without blocking data export', () => {

@@ -799,6 +799,59 @@ describe('interaction', () => {
     expect(onRateApp).toHaveBeenCalled();
   });
 
+  it('SettingsPage 對 optional 更新可略過此版本並保留下版提醒', async () => {
+    vi.useRealTimers();
+    vi.stubEnv('VITE_UPDATE_MANIFEST_URL', 'https://example.com/update-manifest.json');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ latestVersion: '1.0.1', level: 'optional', message: '小型體驗更新。' }),
+    } as Response);
+    const storage = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+      configurable: true,
+    });
+
+    render(
+      <SettingsPage
+        t={t}
+        r={r}
+        f={f}
+        style="minimal"
+        setStyle={vi.fn()}
+        mode="light"
+        setMode={vi.fn()}
+        currency="NTD"
+        setCurrency={vi.fn()}
+        monthStartDay={1}
+        setMonthStartDay={vi.fn()}
+        billReminder
+        setBillReminder={vi.fn()}
+        iCloudBackup={false}
+        setICloudBackup={vi.fn()}
+        exportCategories={['餐飲']}
+        getCsvExportCount={() => 1}
+        onExportCsv={vi.fn()}
+        onClearAllData={vi.fn()}
+        onRateApp={vi.fn()}
+        updateManifestSourceOverride={{ status: 'ready', envKey: 'VITE_UPDATE_MANIFEST_URL', url: 'https://example.com/update-manifest.json' }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('檢查更新'));
+    await screen.findByText(/遠端最新版本 1.0.1/);
+    expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('尚未設定更新提醒或略過版本');
+
+    fireEvent.click(screen.getByRole('button', { name: '略過' }));
+    expect(window.localStorage.getItem('expense-tracker-redo-update-reminder')).toContain('skip-version');
+    expect(window.localStorage.getItem('expense-tracker-redo-update-reminder')).toContain('1.0.1');
+  });
+
   it('SettingsPage 手動檢查到 required update 會通知 App 層啟用保護', async () => {
     vi.useRealTimers();
     vi.stubEnv('VITE_UPDATE_MANIFEST_URL', 'https://example.com/update-manifest.json');
