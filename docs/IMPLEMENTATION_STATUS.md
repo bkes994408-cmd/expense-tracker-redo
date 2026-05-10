@@ -1,5 +1,25 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U15）
+
+## 0) 本輪完成（Update Feature U15：更新提醒入口狀態 badge）
+
+### U15. Update reminder status badge
+- `src/utils/updateInfo.ts`
+  - 新增 `UpdateReminderBadge` 與 `createUpdateReminderBadge()`，將稍後提醒、略過版本與新版本重新確認狀態轉成簡短入口文案。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings「檢查更新」row 新增 `更新入口狀態` badge，不必打開彈窗也能看到目前是未設定提醒、稍後提醒或已略過版本。
+  - 檢查更新彈窗的「更新提醒狀態」加入入口狀態 detail，讓 QA / 使用者可確認本機 reminder preference 是否正確。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 badge helper 與 optional 略過版本後 row badge / modal 狀態測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 156 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U14）
 
 ## 0) 本輪完成（Update Feature U14：更新提醒 / 略過 baseline）

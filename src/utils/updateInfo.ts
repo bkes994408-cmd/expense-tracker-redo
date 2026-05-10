@@ -97,6 +97,12 @@ export type UpdateReminderPreference = {
   remindAfter?: string;
 };
 
+export type UpdateReminderBadge = {
+  label: string;
+  detail: string;
+  tone: 'neutral' | 'accent' | 'warn';
+};
+
 export const DATA_SCHEMA_VERSION = 5;
 export const UPDATE_MANIFEST_ENV_KEY = 'VITE_UPDATE_MANIFEST_URL' as const;
 
@@ -456,6 +462,27 @@ export function getUpdateReminderPreferenceSummary(preference: UpdateReminderPre
   if (!preference) return '尚未設定更新提醒或略過版本。';
   if (preference.action === 'skip-version') return `已略過版本 ${preference.version}，下個版本仍會提醒。`;
   return `已設定稍後提醒版本 ${preference.version}${preference.remindAfter ? `，提醒時間 ${preference.remindAfter}` : ''}。`;
+}
+
+export function createUpdateReminderBadge(preference: UpdateReminderPreference | null | undefined, currentVersion?: string): UpdateReminderBadge {
+  if (!preference) {
+    return { label: '未設定提醒', detail: '尚未稍後提醒或略過版本。', tone: 'neutral' };
+  }
+
+  const isSameVersion = currentVersion ? preference.version === currentVersion : true;
+  if (!isSameVersion) {
+    return { label: '有新版本', detail: `先前偏好是版本 ${preference.version}，目前版本 ${currentVersion} 仍需重新確認。`, tone: 'accent' };
+  }
+
+  if (preference.action === 'skip-version') {
+    return { label: `已略過 v${preference.version}`, detail: '這個版本不再主動提醒，下個版本仍會提醒。', tone: 'neutral' };
+  }
+
+  return {
+    label: '稍後提醒',
+    detail: `已設定版本 ${preference.version} 的稍後提醒${preference.remindAfter ? `（${preference.remindAfter} 後）` : ''}。`,
+    tone: 'accent',
+  };
 }
 
 export function createRequiredUpdateProtectionSummary(policy: UpdatePolicy): RequiredUpdateProtectionSummary {
