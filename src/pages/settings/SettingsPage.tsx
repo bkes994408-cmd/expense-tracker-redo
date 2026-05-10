@@ -11,8 +11,8 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
-import type { UpdateManifestFetchResult } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderPreference, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus } from '../../utils/updateInfo';
+import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
 type RowProps = {
@@ -30,6 +30,8 @@ type ManifestCheckState =
   | { status: 'idle' }
   | { status: 'checking' }
   | UpdateManifestFetchResult;
+
+const UPDATE_REMINDER_STORAGE_KEY = 'expense-tracker-redo-update-reminder';
 
 function Row({ C, label, right, noBorder = false, onClick, t, r, f }: RowProps) {
   return (
@@ -65,6 +67,15 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [updateCheckOpen, setUpdateCheckOpen] = useState(false);
   const [manifestCheck, setManifestCheck] = useState<ManifestCheckState>({ status: 'idle' });
+  const [updateReminderPreference, setUpdateReminderPreference] = useState<UpdateReminderPreference | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage?.getItem(UPDATE_REMINDER_STORAGE_KEY);
+      return raw ? JSON.parse(raw) as UpdateReminderPreference : null;
+    } catch {
+      return null;
+    }
+  });
   const clearKeyword = 'CLEAR';
   const isClearKeywordMatched = clearConfirmText.trim().toUpperCase() === clearKeyword;
   const currencyContext = useMemo(() => createCurrencyDisplayContext(currency), [currency]);
@@ -78,11 +89,15 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const updateManifestSource = useMemo(() => updateManifestSourceOverride ?? createUpdateManifestSource(), [updateManifestSourceOverride]);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
   const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
+  const activeUpdateVersion = manifestCheck.status === 'success'
+    ? manifestCheck.manifest?.latestVersion ?? RELEASE_NOTES[0]?.version ?? versionInfo.appVersion
+    : RELEASE_NOTES[0]?.version ?? versionInfo.appVersion;
   const activeUpdatePolicy = useMemo(() => getUpdatePolicy(activeUpdateStatus.level), [activeUpdateStatus.level]);
   const requiredUpdateProtection = useMemo(() => createRequiredUpdateProtectionSummary(requiredUpdateProtectionActive ? getUpdatePolicy('required') : activeUpdatePolicy), [activeUpdatePolicy, requiredUpdateProtectionActive]);
   const manifestCheckSummary = manifestCheck.status === 'success' || manifestCheck.status === 'error' || manifestCheck.status === 'not-configured'
     ? manifestCheck.summary
     : updateManifestSummary;
+  const updateReminderSummary = useMemo(() => getUpdateReminderPreferenceSummary(updateReminderPreference), [updateReminderPreference]);
   const ruleStatus = useMemo(() => getRuleStatusSummary(), []);
   const backupSummary = useMemo(() => createLocalBackupSummary(versionInfo), [versionInfo]);
   const backupStatus = useMemo(() => getMigrationBackupStatus({
@@ -210,6 +225,30 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
         onRequiredUpdateProtectionChange?.(true);
       }
     });
+  }
+
+  function persistUpdateReminderPreference(preference: UpdateReminderPreference) {
+    setUpdateReminderPreference(preference);
+    try {
+      if (typeof window !== 'undefined') window.localStorage?.setItem(UPDATE_REMINDER_STORAGE_KEY, JSON.stringify(preference));
+    } catch {
+      // localStorage may be unavailable in private contexts; UI state still reflects this session.
+    }
+  }
+
+  function handleUpdateSecondaryAction() {
+    if (activeUpdatePolicy.level === 'required') {
+      setUpdateCheckOpen(false);
+      return;
+    }
+
+    const preference = createUpdateReminderPreference(activeUpdatePolicy, activeUpdateVersion);
+    if (preference) {
+      persistUpdateReminderPreference(preference);
+      setCopyFeedback(preference.action === 'remind-later' ? '已設定稍後提醒' : '已略過此版本');
+      setTimeout(() => setCopyFeedback(''), 1800);
+    }
+    setUpdateCheckOpen(false);
   }
 
   function handleUpdatePrimaryAction() {
@@ -746,6 +785,10 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
                 </div>
               ))}
             </div>
+            <div aria-label="更新提醒狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
+              {updateReminderSummary}
+              {activeUpdatePolicy.level === 'required' && <div style={{ marginTop: '4px', color: t.primary }}>必要更新不可略過，也不提供稍後提醒。</div>}
+            </div>
             <div style={{ display: 'grid', gap: '7px', fontSize: '11px', color: t.secondary, marginBottom: '12px' }}>
               <div>目前版本：v{versionInfo.appVersion}</div>
               <div>Build：{versionInfo.buildNumber}</div>
@@ -755,7 +798,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {activeUpdatePolicy.secondaryAction && (
-                <button className="press" onClick={() => setUpdateCheckOpen(false)} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{activeUpdatePolicy.secondaryAction}</button>
+                <button className="press" onClick={handleUpdateSecondaryAction} style={{ flex: 1, border: `1px solid ${t.border}`, borderRadius: r.input, padding: '10px', background: t.surfaceAlt, color: t.primary, fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>{activeUpdatePolicy.secondaryAction}</button>
               )}
               <button
                 className="press"

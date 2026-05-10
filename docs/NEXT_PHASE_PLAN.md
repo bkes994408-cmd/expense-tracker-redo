@@ -75,10 +75,10 @@
 
 ## 路線 C，更新功能後續（U6+）
 
-U1～U13 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心、匯率口徑準備、商店連結設定、遠端更新 manifest 基礎、遠端 manifest 查詢/fallback，以及 required update 主要操作保護流程。
+U1～U14 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心、匯率口徑準備、商店連結設定、遠端更新 manifest 基礎、遠端 manifest 查詢/fallback、required update 主要操作保護流程，以及 optional/recommended 更新提醒與略過 baseline。
 
 建議後續：
-1. U14：更新通知與稍後提醒 baseline，讓 recommended / optional 可稍後提醒或略過本版，required 維持不可略過。
+1. U15：更新提醒首頁/Settings badge 顯示，把已設定的稍後提醒或略過版本轉成更明確的入口狀態。
 2. 接入正式 App Store / Play Store 版本查詢；商店連結已可用 `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` 設定，遠端版本 manifest 已可查詢並具備 fallback。
 3. 若要啟用真正匯率換算，需補匯率來源、缺值 fallback 與歷史匯率測試。
 3. 補更接近真機的 iOS / Android QA 驗證與截圖素材流程。
