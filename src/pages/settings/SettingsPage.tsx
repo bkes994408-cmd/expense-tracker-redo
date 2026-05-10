@@ -54,7 +54,7 @@ function Sec({ title, children, delay = 0, t, r }: { title: string; children: Re
 
 const CURRENCY_LABEL: Record<SettingsPageProps['currency'], string> = CURRENCY_SYMBOL;
 
-export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency, setCurrency, monthStartDay, setMonthStartDay, billReminder, setBillReminder, iCloudBackup, setICloudBackup, exportCategories, getCsvExportCount, onExportCsv, lastCsvExport, onClearAllData, onRateApp, requiredUpdateProtectionActive = false }: SettingsPageProps) {
+export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency, setCurrency, monthStartDay, setMonthStartDay, billReminder, setBillReminder, iCloudBackup, setICloudBackup, exportCategories, getCsvExportCount, onExportCsv, lastCsvExport, onClearAllData, onRateApp, requiredUpdateProtectionActive = false, onRequiredUpdateProtectionChange, updateManifestSourceOverride }: SettingsPageProps) {
   const [exportScope, setExportScope] = useState<'month' | 'all' | 'category'>('month');
   const [selectedCategory, setSelectedCategory] = useState<SettingsPageProps['exportCategories'][number] | ''>('');
   const [picker, setPicker] = useState<'currency' | 'monthStart' | null>(null);
@@ -75,7 +75,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const storeLinks = useMemo(() => createStoreLinks(), []);
   const primaryReadyStoreLink = useMemo(() => getPrimaryReadyStoreLink(storeLinks), [storeLinks]);
   const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
-  const updateManifestSource = useMemo(() => createUpdateManifestSource(), []);
+  const updateManifestSource = useMemo(() => updateManifestSourceOverride ?? createUpdateManifestSource(), [updateManifestSourceOverride]);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
   const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
   const activeUpdatePolicy = useMemo(() => getUpdatePolicy(activeUpdateStatus.level), [activeUpdateStatus.level]);
@@ -203,7 +203,13 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     }
 
     setManifestCheck({ status: 'checking' });
-    void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then(setManifestCheck);
+    void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then((result) => {
+      setManifestCheck(result);
+      const policy = getUpdatePolicy(result.updateStatus.level);
+      if (policy.level === 'required' && !policy.canUseCoreApp) {
+        onRequiredUpdateProtectionChange?.(true);
+      }
+    });
   }
 
   function handleUpdatePrimaryAction() {
