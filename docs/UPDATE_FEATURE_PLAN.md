@@ -192,6 +192,11 @@ Settings 增加「檢查更新」。
 - 檢查項目包含遠端 manifest fallback、App Store 更新連結與 Play Store 更新連結。
 - 檢查更新彈窗與更新診斷會列出待補 env key，方便後續接正式商店查詢 API。
 
+已落地（U20）：
+- 定義正式商店版本查詢 adapter 結果型別與 fallback plan。
+- 查詢優先序固定為商店來源 → 遠端 manifest → 本機 release notes。
+- Settings 更新檢查與更新診斷會顯示商店版本查詢優先序與 primary source。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 

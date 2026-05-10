@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, createStoreLinks, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, isUpdateReminderDue } from '../../utils/updateInfo';
 import type { UpdateManifestFetchResult, UpdateReminderPreference } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
@@ -89,6 +89,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const updateManifestSource = useMemo(() => updateManifestSourceOverride ?? createUpdateManifestSource(), [updateManifestSourceOverride]);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
   const storeVersionQueryPreflight = useMemo(() => createStoreVersionQueryPreflight(updateManifestSource, storeLinks), [storeLinks, updateManifestSource]);
+  const storeVersionQueryPlan = useMemo(() => createStoreVersionQueryPlan(updateManifestSource, storeLinks), [storeLinks, updateManifestSource]);
   const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
   const activeUpdateVersion = manifestCheck.status === 'success'
     ? manifestCheck.manifest?.latestVersion ?? RELEASE_NOTES[0]?.version ?? versionInfo.appVersion
@@ -116,11 +117,12 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     storeSummary,
     updateManifestSummary: manifestCheckSummary,
     storeVersionQueryPreflight,
+    storeVersionQueryPlan,
     backupStatusLabel: backupStatus.label,
     backupStatusDetail: backupStatus.detail,
     categoryRuleVersion: ruleStatus.categoryRuleVersion,
     noteSuggestionRuleVersion: ruleStatus.noteSuggestionRuleVersion,
-  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, storeVersionQueryPreflight, versionInfo]);
+  }), [activeUpdatePolicy, activeUpdateStatus, backupStatus.detail, backupStatus.label, manifestCheckSummary, ruleStatus.categoryRuleVersion, ruleStatus.noteSuggestionRuleVersion, storeSummary, storeVersionQueryPlan, storeVersionQueryPreflight, versionInfo]);
   const allTransactionCount = useMemo(() => getCsvExportCount({ scope: 'all' }), [getCsvExportCount]);
   const syncStatus = useMemo(() => createSyncStatusSummary({
     localTransactionCount: allTransactionCount,
@@ -830,6 +832,7 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
                   <div key={check.label}>• {check.label}：{check.status === 'ready' ? '已就緒' : '待補'} — {check.detail}</div>
                 ))}
               </div>
+              <div aria-label="商店版本查詢優先序" style={{ marginTop: '8px', color: t.primary }}>{createStoreVersionQueryFallbackSummary(storeVersionQueryPlan)}</div>
             </div>
             <div aria-label="更新提醒狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '12px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
               {updateReminderSummary}

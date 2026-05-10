@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest, parseStoreVersionQueryResult } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -177,6 +177,24 @@ describe('updateInfo helpers', () => {
     expect(ready.summary).toContain('前置設定已齊');
   });
 
+  it('defines store version query adapter results and fallback priority', () => {
+    const plan = createStoreVersionQueryPlan(
+      createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+      createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: 'https://play.google.com/store/apps/details?id=app.expense' }),
+    );
+    const manifestOnlyPlan = createStoreVersionQueryPlan(
+      createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+      createStoreLinks({ VITE_APP_STORE_URL: '', VITE_PLAY_STORE_URL: '' }),
+    );
+
+    expect(plan.order).toEqual(['appStore', 'playStore', 'manifest', 'local']);
+    expect(plan.primarySource).toBe('appStore');
+    expect(createStoreVersionQueryFallbackSummary(plan)).toContain('App Store → Play Store → 遠端 manifest → 本機 release notes');
+    expect(manifestOnlyPlan.order).toEqual(['manifest', 'local']);
+    expect(parseStoreVersionQueryResult('appStore', { latestVersion: ' 1.0.2 ', minimumSupportedVersion: '1.0.0', level: 'recommended' })).toEqual(expect.objectContaining({ source: 'appStore', status: 'success', latestVersion: '1.0.2', level: 'recommended' }));
+    expect(parseStoreVersionQueryResult('playStore', { latestVersion: '' })).toBeUndefined();
+  });
+
   it('summarizes local backup context for safe migration copy', () => {
     const info = createVersionInfo();
     const summary = createLocalBackupSummary(info);
@@ -198,6 +216,10 @@ describe('updateInfo helpers', () => {
         createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
         createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: '' }),
       ),
+      storeVersionQueryPlan: createStoreVersionQueryPlan(
+        createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' }),
+        createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: '' }),
+      ),
       backupStatusLabel: '尚無本機復原點',
       backupStatusDetail: '更新前若需要 migration，系統會先建立本機復原點。',
       categoryRuleVersion: 'category-test',
@@ -208,6 +230,7 @@ describe('updateInfo helpers', () => {
     expect(diagnostics).toContain('App version: 1.0.0');
     expect(diagnostics).toContain('Store query preflight:');
     expect(diagnostics).toContain('Play Store 更新連結: missing');
+    expect(diagnostics).toContain('Store query fallback: 版本查詢優先序：App Store → 遠端 manifest → 本機 release notes。');
     expect(diagnostics).toContain('Recovery point: 尚無本機復原點');
     expect(diagnostics).toContain('Category rule version: category-test');
   });
