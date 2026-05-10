@@ -238,6 +238,17 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     }
   }
 
+  function clearUpdateReminderPreference() {
+    setUpdateReminderPreference(null);
+    try {
+      if (typeof window !== 'undefined') window.localStorage?.removeItem(UPDATE_REMINDER_STORAGE_KEY);
+    } catch {
+      // localStorage may be unavailable in private contexts; UI state still reflects this session.
+    }
+    setCopyFeedback('已清除更新提醒偏好');
+    setTimeout(() => setCopyFeedback(''), 1800);
+  }
+
   function handleUpdateSecondaryAction() {
     if (activeUpdatePolicy.level === 'required') {
       setUpdateCheckOpen(false);
@@ -804,6 +815,16 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               {updateReminderSummary}
               <div style={{ marginTop: '4px', color: updateReminderBadge.tone === 'accent' ? t.accent : updateReminderBadge.tone === 'warn' ? t.negative : t.secondary }}>入口狀態：{updateReminderBadge.label}｜{updateReminderBadge.detail}</div>
               {activeUpdatePolicy.level === 'required' && <div style={{ marginTop: '4px', color: t.primary }}>必要更新不可略過，也不提供稍後提醒。</div>}
+              {updateReminderPreference && activeUpdatePolicy.level !== 'required' && (
+                <button
+                  className="press"
+                  aria-label="清除更新提醒偏好"
+                  onClick={clearUpdateReminderPreference}
+                  style={{ marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  清除提醒偏好
+                </button>
+              )}
             </div>
             <div style={{ display: 'grid', gap: '7px', fontSize: '11px', color: t.secondary, marginBottom: '12px' }}>
               <div>目前版本：v{versionInfo.appVersion}</div>

@@ -1,5 +1,24 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U17）
+
+## 0) 本輪完成（Update Feature U17：更新提醒清除 / 重新設定流程）
+
+### U17. Update reminder reset flow
+- `src/pages/settings/SettingsPage.tsx`
+  - 檢查更新彈窗在存在 reminder preference 且非 required update 時，顯示「清除提醒偏好」按鈕。
+  - 清除後會移除本機 `expense-tracker-redo-update-reminder`，並即時把入口 badge / 彈窗狀態恢復成「未設定提醒」。
+  - 清除後使用者可重新執行稍後提醒或略過版本流程，避免卡在舊 preference。
+- `src/test/interaction.test.tsx`
+  - 補提醒到期後清除偏好、localStorage 移除、UI 狀態重設測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 157 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U16）
 
 ## 0) 本輪完成（Update Feature U16：更新提醒到期判斷）
