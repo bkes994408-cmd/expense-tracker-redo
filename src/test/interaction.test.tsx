@@ -785,6 +785,8 @@ describe('interaction', () => {
     expect(screen.getByLabelText('遠端更新來源狀態')).toHaveTextContent('未設定');
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('App Store');
     expect(screen.getByLabelText('商店更新連結狀態')).toHaveTextContent('上架後啟用');
+    expect(screen.getByLabelText('正式商店版本查詢前置檢查')).toHaveTextContent('正式查詢前置：待設定');
+    expect(screen.getByLabelText('正式商店版本查詢前置檢查')).toHaveTextContent('遠端 manifest fallback：待補');
     expect(screen.getAllByText(/尚無本機復原點/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: '知道了' }));
     expect(screen.queryByRole('dialog', { name: '檢查更新結果' })).not.toBeInTheDocument();

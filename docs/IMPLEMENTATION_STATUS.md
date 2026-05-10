@@ -1,5 +1,27 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U19）
+
+## 0) 本輪完成（Update Feature U19：正式商店版本查詢前置檢查）
+
+### U19. Store version query preflight
+- `src/utils/updateInfo.ts`
+  - 新增 `createStoreVersionQueryPreflight()`，盤點正式 App Store / Play Store 版本查詢前置條件。
+  - 檢查項目包含遠端 manifest fallback、App Store 更新連結、Play Store 更新連結。
+  - 更新診斷文字會輸出 preflight summary 與每個缺口，方便上架/客服交接。
+- `src/pages/settings/SettingsPage.tsx`
+  - 檢查更新彈窗新增「正式商店版本查詢前置檢查」區塊。
+  - UI 明確標示前置狀態為待設定、部分就緒或已齊備，並列出待補 env key。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 preflight helper、診斷輸出與 Settings UI 顯示測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 158 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U18）
 
 ## 0) 本輪完成（Update Feature U18：更新提醒重新設定快捷動線）
