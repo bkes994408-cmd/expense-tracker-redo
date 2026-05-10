@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TxnModal } from '../components/modals/TxnModal';
 import { BudgetTab } from '../pages/reports/BudgetTab';
@@ -27,8 +27,14 @@ describe('interaction', () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
+    try {
+      vi.runOnlyPendingTimers();
+    } catch {
+      // Some tests intentionally switch back to real timers for async fetch flows.
+    }
     vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('BudgetTab 可編輯單一分類預算', () => {
@@ -791,6 +797,90 @@ describe('interaction', () => {
     expect(onExportCsv).toHaveBeenNthCalledWith(2, { scope: 'category', category: '交通' });
     expect(onClearAllData).toHaveBeenCalledTimes(1);
     expect(onRateApp).toHaveBeenCalled();
+  });
+
+  it('SettingsPage 手動檢查到 required update 會通知 App 層啟用保護', async () => {
+    vi.useRealTimers();
+    vi.stubEnv('VITE_UPDATE_MANIFEST_URL', 'https://example.com/update-manifest.json');
+    const onRequiredUpdateProtectionChange = vi.fn();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ latestVersion: '1.0.2', minimumSupportedVersion: '1.0.1', message: '請更新以維持資料相容。' }),
+    } as Response);
+
+    render(
+      <SettingsPage
+        t={t}
+        r={r}
+        f={f}
+        style="minimal"
+        setStyle={vi.fn()}
+        mode="light"
+        setMode={vi.fn()}
+        currency="NTD"
+        setCurrency={vi.fn()}
+        monthStartDay={1}
+        setMonthStartDay={vi.fn()}
+        billReminder
+        setBillReminder={vi.fn()}
+        iCloudBackup={false}
+        setICloudBackup={vi.fn()}
+        exportCategories={['餐飲']}
+        getCsvExportCount={() => 1}
+        onExportCsv={vi.fn()}
+        onClearAllData={vi.fn()}
+        onRateApp={vi.fn()}
+        onRequiredUpdateProtectionChange={onRequiredUpdateProtectionChange}
+        updateManifestSourceOverride={{ status: 'ready', envKey: 'VITE_UPDATE_MANIFEST_URL', url: 'https://example.com/update-manifest.json' }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('檢查更新'));
+
+    await waitFor(() => expect(onRequiredUpdateProtectionChange).toHaveBeenCalledWith(true));
+    expect(screen.getByLabelText('更新行為策略')).toHaveTextContent('限制主要操作');
+  });
+
+  it('SettingsPage 顯示必要更新保護狀態且保留資料出口', () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextMock },
+      configurable: true,
+    });
+
+    render(
+      <SettingsPage
+        t={t}
+        r={r}
+        f={f}
+        style="minimal"
+        setStyle={vi.fn()}
+        mode="light"
+        setMode={vi.fn()}
+        currency="NTD"
+        setCurrency={vi.fn()}
+        monthStartDay={1}
+        setMonthStartDay={vi.fn()}
+        billReminder
+        setBillReminder={vi.fn()}
+        iCloudBackup={false}
+        setICloudBackup={vi.fn()}
+        exportCategories={['餐飲']}
+        getCsvExportCount={() => 1}
+        onExportCsv={vi.fn()}
+        onClearAllData={vi.fn()}
+        onRateApp={vi.fn()}
+        requiredUpdateProtectionActive
+      />,
+    );
+
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('必要更新保護已啟用');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('CSV 匯出');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('複製更新診斷');
+    expect(screen.getByLabelText('必要更新保護狀態')).toHaveTextContent('新增交易');
+    fireEvent.click(screen.getByRole('button', { name: '複製必要更新保護狀態' }));
+    expect(writeTextMock).toHaveBeenCalledWith(expect.stringContaining('必要更新保護已啟用'));
   });
 
   it('SettingsPage 清除資料流程支援取消、重開與最終清除', () => {

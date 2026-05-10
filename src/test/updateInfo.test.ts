@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createStoreLinks, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -30,10 +30,15 @@ describe('updateInfo helpers', () => {
 
   it('defines required update behavior without blocking data export', () => {
     const policy = getUpdatePolicy('required');
+    const protection = createRequiredUpdateProtectionSummary(policy);
 
     expect(policy.canPostpone).toBe(false);
     expect(policy.canUseCoreApp).toBe(false);
     expect(policy.mustKeepExportAvailable).toBe(true);
+    expect(protection.active).toBe(true);
+    expect(protection.allowedActions).toEqual(expect.arrayContaining(['CSV 匯出', '複製更新診斷', '查看本機復原點資訊']));
+    expect(protection.blockedActions).toEqual(expect.arrayContaining(['新增交易', '編輯交易', '刪除交易']));
+    expect(protection.copyText).toContain('必要更新保護已啟用');
   });
 
   it('summarizes store placeholder availability honestly', () => {

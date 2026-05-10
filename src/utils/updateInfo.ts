@@ -81,6 +81,15 @@ export type UpdateDiagnosticsInput = {
   noteSuggestionRuleVersion: string;
 };
 
+export type RequiredUpdateProtectionSummary = {
+  active: boolean;
+  title: string;
+  message: string;
+  allowedActions: string[];
+  blockedActions: string[];
+  copyText: string;
+};
+
 export const DATA_SCHEMA_VERSION = 5;
 export const UPDATE_MANIFEST_ENV_KEY = 'VITE_UPDATE_MANIFEST_URL' as const;
 
@@ -414,6 +423,34 @@ export function getUpdatePolicy(level: UpdateLevel): UpdatePolicy {
     canUseCoreApp: true,
     mustKeepExportAvailable: true,
     message: '目前沒有需要安裝的更新。',
+  };
+}
+
+export function createRequiredUpdateProtectionSummary(policy: UpdatePolicy): RequiredUpdateProtectionSummary {
+  const active = policy.level === 'required' && !policy.canUseCoreApp;
+  const allowedActions = active
+    ? ['CSV 匯出', '複製更新診斷', '查看本機復原點資訊', '開啟商店更新連結']
+    : ['完整核心功能', 'CSV 匯出', '更新診斷', '本機復原點資訊'];
+  const blockedActions = active
+    ? ['新增交易', '編輯交易', '刪除交易', '預算與目標主要操作', '報表主要操作']
+    : [];
+  const title = active ? '必要更新保護已啟用' : '必要更新保護未啟用';
+  const message = active
+    ? '目前版本低於最低支援版本時，App 會限制主要操作，避免在可能不相容的資料結構上繼續寫入；資料匯出、更新診斷與本機復原點資訊仍會保留。'
+    : '目前未進入必要更新狀態，核心功能維持可用。';
+
+  return {
+    active,
+    title,
+    message,
+    allowedActions,
+    blockedActions,
+    copyText: [
+      title,
+      `Allowed: ${allowedActions.join(', ')}`,
+      `Blocked: ${blockedActions.length > 0 ? blockedActions.join(', ') : 'none'}`,
+      message,
+    ].join('\n'),
   };
 }
 

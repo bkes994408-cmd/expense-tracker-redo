@@ -162,6 +162,10 @@ Settings 增加「檢查更新」。
 - Settings 點擊「檢查更新」時會實際查詢遠端 manifest。
 - 支援 timeout、payload validation、HTTP/schema error fallback，遠端失敗不阻塞核心功能。
 
+已落地（U13）：
+- App 啟動時可依遠端 manifest 判定 required update 並啟用保護流程。
+- required update 會限制新增/編輯/刪除交易與主要寫入操作，但保留 CSV 匯出、更新診斷、本機復原點資訊與商店更新連結。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 
@@ -169,7 +173,7 @@ Settings 增加「檢查更新」。
 - recommended：建議更新，影響體驗或修 bug。
 - required：必須更新，通常是資料相容性或安全問題。
 
-初版只先做資料模型與 UI 狀態，不接遠端。
+已接上遠端 manifest 判定與 App 內 required update 保護流程。
 
 驗收：
 - optional 可略過。

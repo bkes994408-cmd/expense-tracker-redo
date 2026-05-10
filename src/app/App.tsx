@@ -17,6 +17,7 @@ import { useRecurringActions } from '../hooks/useRecurringActions';
 import { useToastQueue } from '../hooks/useToastQueue';
 import { buildRecurringItemFromTransaction, normalizeSavedTransaction } from './appActions';
 import { reapplyCategoryRulesToTransactions } from '../rules/categoryRules';
+import { createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getUpdatePolicy } from '../utils/updateInfo';
 
 import type { Category, Transaction } from '../domain/types';
 
@@ -42,10 +43,40 @@ export function App(){
   const txns=useFinanceStore(s=>s.transactions), budgets=useFinanceStore(s=>s.budgets), recurring=useFinanceStore(s=>s.recurring), goals=useFinanceStore(s=>s.goals);
   const setTxns=useFinanceStore(s=>s.setTransactions), setBudgets=useFinanceStore(s=>s.setBudgets), setRec=useFinanceStore(s=>s.setRecurring), setGoals=useFinanceStore(s=>s.setGoals), resetAllData=useFinanceStore(s=>s.resetAllData);
   const [showAdd,setShowAdd]=useState(false), [editTx,setEditTx]=useState<Transaction | null>(null), [loading,setLoading]=useState(true), [prevScr,setPrev]=useState(screen), [txnModalTab, setTxnModalTab] = useState<'calc' | 'text' | 'quick'>('calc'), [txnModalQuickInput, setTxnModalQuickInput] = useState('');
+  const [requiredUpdateProtectionActive, setRequiredUpdateProtectionActive] = useState(false);
   const { toasts, toast } = useToastQueue();
   useEffect(()=>{setTimeout(()=>setLoading(false),1600);},[]);
+  useEffect(() => {
+    const source = createUpdateManifestSource();
+    if (source.status !== 'ready') return;
+
+    let cancelled = false;
+    void fetchRemoteUpdateManifest(source, createVersionInfo()).then((result) => {
+      if (cancelled) return;
+      const policy = getUpdatePolicy(result.updateStatus.level);
+      const shouldProtect = policy.level === 'required' && !policy.canUseCoreApp;
+      setRequiredUpdateProtectionActive(shouldProtect);
+      if (shouldProtect) {
+        setScreen_(4);
+        toast('需要更新：已限制主要操作，仍可匯出 CSV 與複製更新診斷', 'warn');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setScreen_, toast]);
   const t=THEME_TOKENS[style][mode], r=RADII[style], f=FONTS[style];
-  const setScreen = (n: AppTab) => { setPrev(screen); setScreen_(n); };
+  const setScreen = (n: AppTab) => {
+    if (requiredUpdateProtectionActive && n !== 4) {
+      setPrev(screen);
+      setScreen_(4);
+      toast('必要更新保護中：主要操作暫停，請先更新或匯出資料', 'warn');
+      return;
+    }
+    setPrev(screen);
+    setScreen_(n);
+  };
   const dir = screen > prevScr ? 'right' : screen < prevScr ? 'left' : 'none';
   const dirAnim = dir === 'right' ? 'slideInR' : dir === 'left' ? 'slideInL' : 'fadeIn';
 
@@ -83,6 +114,13 @@ export function App(){
   const selectedTxns = txns.filter((x) => new Date(x.date).getMonth() === month);
 
   function saveTxn(tx: Transaction & { isRec?: boolean; freq?: 'daily' | 'weekly' | 'monthly' | 'yearly' }) {
+    if (requiredUpdateProtectionActive) {
+      setShowAdd(false);
+      setEditTx(null);
+      setScreen(4);
+      toast('必要更新保護中：交易寫入已暫停，請先更新或匯出資料', 'warn');
+      return;
+    }
     const nextTxn = normalizeSavedTransaction(tx, editTx, displayCurrency);
     const nextRecurring = !editTx ? buildRecurringItemFromTransaction(tx, month) : null;
     if (nextRecurring) {
@@ -101,8 +139,20 @@ export function App(){
     setShowAdd(false);
   }
 
-  function deleteTxn(id: number) { setTxns((p) => p.filter((x) => x.id !== id)); toast('已刪除', 'warn'); }
+  function deleteTxn(id: number) {
+    if (requiredUpdateProtectionActive) {
+      setScreen(4);
+      toast('必要更新保護中：刪除交易已暫停', 'warn');
+      return;
+    }
+    setTxns((p) => p.filter((x) => x.id !== id)); toast('已刪除', 'warn');
+  }
   function reapplyCategoryRules(ids: number[]) {
+    if (requiredUpdateProtectionActive) {
+      setScreen(4);
+      toast('必要更新保護中：分類規則批次寫入已暫停', 'warn');
+      return { transactions: txns, scanned: 0, eligible: 0, changed: 0, unchanged: 0, skippedManual: 0, changedNames: [] };
+    }
     const result = reapplyCategoryRulesToTransactions(txns, ids);
     if (result.changed > 0) setTxns(result.transactions);
 
@@ -117,17 +167,38 @@ export function App(){
 
     return result;
   }
-  function openEdit(tx: Transaction) { setEditTx(tx); setTxnModalTab('calc'); setTxnModalQuickInput(''); setShowAdd(true); }
+  function openEdit(tx: Transaction) {
+    if (requiredUpdateProtectionActive) {
+      setScreen(4);
+      toast('必要更新保護中：編輯交易已暫停', 'warn');
+      return;
+    }
+    setEditTx(tx); setTxnModalTab('calc'); setTxnModalQuickInput(''); setShowAdd(true);
+  }
 
-  const openQuickEntry = (initialInput: string = '') => { setEditTx(null); setTxnModalTab('quick'); setTxnModalQuickInput(initialInput); setShowAdd(true); };
-  const openDefaultAdd = () => { setEditTx(null); setTxnModalTab('calc'); setTxnModalQuickInput(''); setShowAdd(true); };
+  const openQuickEntry = (initialInput: string = '') => {
+    if (requiredUpdateProtectionActive) {
+      setScreen(4);
+      toast('必要更新保護中：新增交易暫停，CSV 匯出仍可使用', 'warn');
+      return;
+    }
+    setEditTx(null); setTxnModalTab('quick'); setTxnModalQuickInput(initialInput); setShowAdd(true);
+  };
+  const openDefaultAdd = () => {
+    if (requiredUpdateProtectionActive) {
+      setScreen(4);
+      toast('必要更新保護中：新增交易暫停，CSV 匯出仍可使用', 'warn');
+      return;
+    }
+    setEditTx(null); setTxnModalTab('calc'); setTxnModalQuickInput(''); setShowAdd(true);
+  };
 
   const screens=[
     <HomePage txns={selectedTxns} budgets={budgets} recurring={recurring} goals={goals} loading={loading} currency={displayCurrency} recentQuickEntries={recentQuickEntries} onQuickEntryOpen={openQuickEntry} t={t} r={r} f={f}/>,
     <TransactionsPage txns={selectedTxns} recurring={recurring} currency={displayCurrency} t={t} r={r} f={f} onEdit={openEdit} onDelete={deleteTxn} onReapplyCategoryRules={reapplyCategoryRules} onRecChange={toggleRecurring} onRecBatchResult={handleRecurringBatchResult} onRecSave={saveRecurring} onRecDelete={deleteRecurring} onRecConfirmPending={confirmRecurringPendingCycle} onRecSkipPending={skipRecurringPendingCycle} month={month} setMonth={setMonth}/>,
     null,
     <ReportsPage txns={selectedTxns} reportTxns={txns} currency={displayCurrency} budgets={budgets} setBudgets={setBudgets} goals={goals} setGoals={setGoals} t={t} r={r} f={f}/>,
-    <SettingsPage t={t} r={r} f={f} style={style} setStyle={setStyle} mode={mode} setMode={setMode} currency={displayCurrency} setCurrency={setDisplayCurrency} monthStartDay={monthStartDay} setMonthStartDay={setMonthStartDay} billReminder={billReminder} setBillReminder={setBillReminder} iCloudBackup={iCloudBackup} setICloudBackup={setICloudBackup} exportCategories={exportCategories} getCsvExportCount={getCsvExportCount} onExportCsv={exportCsv} lastCsvExport={lastCsvExport} onClearAllData={clearAllData} onRateApp={()=>toast('App 評分功能即將推出')} />,
+    <SettingsPage t={t} r={r} f={f} style={style} setStyle={setStyle} mode={mode} setMode={setMode} currency={displayCurrency} setCurrency={setDisplayCurrency} monthStartDay={monthStartDay} setMonthStartDay={setMonthStartDay} billReminder={billReminder} setBillReminder={setBillReminder} iCloudBackup={iCloudBackup} setICloudBackup={setICloudBackup} exportCategories={exportCategories} getCsvExportCount={getCsvExportCount} onExportCsv={exportCsv} lastCsvExport={lastCsvExport} onClearAllData={clearAllData} onRateApp={()=>toast('App 評分功能即將推出')} requiredUpdateProtectionActive={requiredUpdateProtectionActive} onRequiredUpdateProtectionChange={setRequiredUpdateProtectionActive} />,
   ];
 
   return <><style>{APP_CSS}</style><div style={{minHeight:"100dvh",background:isMobileViewport?t.bg:(mode==="dark"?"#080808":"#CCC9C2"),display:"flex",alignItems:isMobileViewport?"stretch":"center",justifyContent:"center",fontFamily:f.body,padding:isMobileViewport?0:"32px 16px",transition:"background 0.4s"}}><div style={{width:isMobileViewport?"100%":"375px",maxWidth:isMobileViewport?"100%":"375px",height:isMobileViewport?"100dvh":"812px",borderRadius:isMobileViewport?0:"52px",overflow:"hidden",position:"relative",background:t.bg,display:"flex",flexDirection:"column",boxShadow:isMobileViewport?"none":(mode==="dark"?"0 0 0 10px #1A1A1A,0 0 0 12px #2A2A2A,0 60px 120px rgba(0,0,0,0.95)":"0 0 0 10px #C4C0B8,0 0 0 12px #AAAA8A0,0 60px 120px rgba(0,0,0,0.28)"),transition:"all 0.4s ease"}}>

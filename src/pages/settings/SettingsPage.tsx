@@ -11,7 +11,7 @@ import { createExchangeRateReadinessSummary } from '../../utils/exchangeRatePoli
 import { getRuleStatusSummary } from '../../rules/categoryRules';
 import { FINANCE_STORAGE_KEY } from '../../store/financeStore';
 import { getMigrationBackupStatus } from '../../store/migrationBackupStorage';
-import { RELEASE_NOTES, createLocalBackupSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
+import { RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createStoreLinks, createUpdateDiagnosticsText, createUpdateManifestSource, createVersionInfo, fetchRemoteUpdateManifest, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateStatus } from '../../utils/updateInfo';
 import type { UpdateManifestFetchResult } from '../../utils/updateInfo';
 import { createSyncStatusSummary } from '../../utils/syncStatus';
 
@@ -54,7 +54,7 @@ function Sec({ title, children, delay = 0, t, r }: { title: string; children: Re
 
 const CURRENCY_LABEL: Record<SettingsPageProps['currency'], string> = CURRENCY_SYMBOL;
 
-export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency, setCurrency, monthStartDay, setMonthStartDay, billReminder, setBillReminder, iCloudBackup, setICloudBackup, exportCategories, getCsvExportCount, onExportCsv, lastCsvExport, onClearAllData, onRateApp }: SettingsPageProps) {
+export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency, setCurrency, monthStartDay, setMonthStartDay, billReminder, setBillReminder, iCloudBackup, setICloudBackup, exportCategories, getCsvExportCount, onExportCsv, lastCsvExport, onClearAllData, onRateApp, requiredUpdateProtectionActive = false, onRequiredUpdateProtectionChange, updateManifestSourceOverride }: SettingsPageProps) {
   const [exportScope, setExportScope] = useState<'month' | 'all' | 'category'>('month');
   const [selectedCategory, setSelectedCategory] = useState<SettingsPageProps['exportCategories'][number] | ''>('');
   const [picker, setPicker] = useState<'currency' | 'monthStart' | null>(null);
@@ -75,10 +75,11 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
   const storeLinks = useMemo(() => createStoreLinks(), []);
   const primaryReadyStoreLink = useMemo(() => getPrimaryReadyStoreLink(storeLinks), [storeLinks]);
   const storeSummary = useMemo(() => getStoreAvailabilitySummary(storeLinks), [storeLinks]);
-  const updateManifestSource = useMemo(() => createUpdateManifestSource(), []);
+  const updateManifestSource = useMemo(() => updateManifestSourceOverride ?? createUpdateManifestSource(), [updateManifestSourceOverride]);
   const updateManifestSummary = useMemo(() => getUpdateManifestAvailabilitySummary(updateManifestSource), [updateManifestSource]);
   const activeUpdateStatus = manifestCheck.status === 'success' ? manifestCheck.updateStatus : localUpdateStatus;
   const activeUpdatePolicy = useMemo(() => getUpdatePolicy(activeUpdateStatus.level), [activeUpdateStatus.level]);
+  const requiredUpdateProtection = useMemo(() => createRequiredUpdateProtectionSummary(requiredUpdateProtectionActive ? getUpdatePolicy('required') : activeUpdatePolicy), [activeUpdatePolicy, requiredUpdateProtectionActive]);
   const manifestCheckSummary = manifestCheck.status === 'success' || manifestCheck.status === 'error' || manifestCheck.status === 'not-configured'
     ? manifestCheck.summary
     : updateManifestSummary;
@@ -202,7 +203,13 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
     }
 
     setManifestCheck({ status: 'checking' });
-    void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then(setManifestCheck);
+    void fetchRemoteUpdateManifest(updateManifestSource, versionInfo).then((result) => {
+      setManifestCheck(result);
+      const policy = getUpdatePolicy(result.updateStatus.level);
+      if (policy.level === 'required' && !policy.canUseCoreApp) {
+        onRequiredUpdateProtectionChange?.(true);
+      }
+    });
   }
 
   function handleUpdatePrimaryAction() {
@@ -218,6 +225,32 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
 
   return (
     <div style={{ padding: '12px 0 80px' }}>
+      {requiredUpdateProtection.active && (
+        <Sec title="必要更新保護" t={t} r={r}>
+          <div aria-label="必要更新保護狀態" style={{ padding: '12px 14px' }}>
+            <RiskNotice
+              ariaLabel="必要更新保護提醒"
+              title={requiredUpdateProtection.title}
+              body={requiredUpdateProtection.message}
+              tone="warn"
+              t={t}
+              r={r}
+            />
+            <div style={{ display: 'grid', gap: '6px', marginTop: '10px', fontSize: '11px', color: t.secondary, lineHeight: 1.5 }}>
+              <div><strong style={{ color: t.primary }}>保留：</strong>{requiredUpdateProtection.allowedActions.join('、')}</div>
+              <div><strong style={{ color: t.primary }}>暫停：</strong>{requiredUpdateProtection.blockedActions.join('、')}</div>
+            </div>
+            <button
+              className="press"
+              aria-label="複製必要更新保護狀態"
+              onClick={() => copyText('必要更新保護狀態', requiredUpdateProtection.copyText)}
+              style={{ marginTop: '8px', border: `1px solid ${t.border}`, borderRadius: r.chip, padding: '6px 10px', background: t.surfaceAlt, color: t.primary, fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              複製保護狀態
+            </button>
+          </div>
+        </Sec>
+      )}
       <Sec title="外觀" t={t} r={r}>
         <Row
           C={LayoutGrid}
@@ -692,6 +725,9 @@ export function SettingsPage({ t, r, f, style, setStyle, mode, setMode, currency
               <div>可稍後處理：{activeUpdatePolicy.canPostpone ? '可以' : '不可以'}</div>
               <div>核心功能可用：{activeUpdatePolicy.canUseCoreApp ? '可以' : '限制主要操作'}</div>
               <div>資料匯出：{activeUpdatePolicy.mustKeepExportAvailable ? '永遠保留' : '依狀態決定'}</div>
+              {requiredUpdateProtection.active && (
+                <div style={{ marginTop: '6px', color: t.primary }}>保護狀態：已限制主要操作，保留 {requiredUpdateProtection.allowedActions.join('、')}。</div>
+              )}
             </div>
             <div aria-label="遠端更新來源狀態" style={{ border: `1px solid ${t.divider}`, borderRadius: r.input, padding: '8px 10px', marginBottom: '8px', fontSize: '11px', color: t.secondary, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
               <span>遠端版本 manifest</span>

@@ -1,5 +1,29 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U13）
+
+## 0) 本輪完成（Update Feature U13：required update 保護流程）
+
+### U13. Required update protection flow
+- `src/utils/updateInfo.ts`
+  - 新增 `createRequiredUpdateProtectionSummary()`，明確列出 required update 狀態下保留與暫停的操作。
+  - required update 會限制主要寫入操作，但保留 CSV 匯出、複製更新診斷、本機復原點資訊與商店更新連結。
+- `src/app/App.tsx`
+  - App 啟動時若 `VITE_UPDATE_MANIFEST_URL` 已設定，會查詢遠端 manifest；若判定為 required update，會切到 Settings 並啟用主要操作保護。
+  - 保護啟用時，新增/編輯/刪除交易與分類規則批次寫入會被導回 Settings，避免在不相容版本繼續寫入資料。
+- `src/pages/settings/SettingsPage.tsx`
+  - Settings 新增「必要更新保護」區塊，顯示保留/暫停項目並可複製保護狀態。
+  - 檢查更新彈窗會標示保護狀態，並持續顯示 CSV 匯出、更新診斷與本機復原點資訊。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 required update 保護摘要與 Settings UI 測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 153 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U12）
 
 ## 0) 本輪完成（Update Feature U12：遠端更新 manifest 查詢）

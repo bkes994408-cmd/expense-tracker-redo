@@ -2,6 +2,7 @@ import type { AppTab } from '../store/appStore';
 import type { BudgetMap, Goal, RecurringConfirmDateStrategy, RecurringItem, ThemeFonts, ThemePalette, ThemeRadii, ThemeStyle, Transaction } from '../domain/types';
 import type { DisplayCurrency } from '../utils/format';
 import type { CategoryRuleReapplyResult } from '../rules/categoryRules';
+import type { UpdateManifestSource } from '../utils/updateInfo';
 
 export type CsvExportScope = 'month' | 'all' | 'category';
 
@@ -81,6 +82,9 @@ export type SettingsPageProps = ThemedProps & {
   lastCsvExport?: CsvExportFeedback | null;
   onClearAllData: () => void;
   onRateApp: () => void;
+  requiredUpdateProtectionActive?: boolean;
+  onRequiredUpdateProtectionChange?: (active: boolean) => void;
+  updateManifestSourceOverride?: UpdateManifestSource;
 };
 
 export type AppScreen = AppTab;
