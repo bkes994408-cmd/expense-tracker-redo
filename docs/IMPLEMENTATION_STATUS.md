@@ -1,5 +1,25 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U21）
+
+## 0) 本輪完成（Update Feature U21：正式商店版本查詢 mock adapter）
+
+### U21. Store version query mock adapter
+- `src/utils/updateInfo.ts`
+  - 新增 `StoreVersionQueryFetcher`、`fetchStoreVersionQuery()` 與 `fetchStoreVersionQueryPlan()`。
+  - 商店版本查詢可注入 mock fetcher，先用標準 JSON result 驗證 App Store / Play Store adapter 合約，不接真實商店 API。
+  - 查詢流程會依 U20 優先序執行：商店來源 → 遠端 manifest → 本機 release notes。
+  - 商店查詢失敗時會記錄 attempt，並自動往下一個 fallback 來源查詢。
+- `src/test/updateInfo.test.ts`
+  - 補 App Store mock 成功、商店失敗回落本機 release notes、商店失敗回落遠端 manifest 測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 161 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U20）
 
 ## 0) 本輪完成（Update Feature U20：正式商店版本查詢 adapter 設計）

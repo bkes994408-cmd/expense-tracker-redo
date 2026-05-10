@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest, parseStoreVersionQueryResult } from '../utils/updateInfo';
+import { DATA_SCHEMA_VERSION, RELEASE_NOTES, createLocalBackupSummary, createRequiredUpdateProtectionSummary, createUpdateReminderBadge, createUpdateReminderPreference, isUpdateReminderDue, createStoreLinks, fetchStoreVersionQueryPlan, createStoreVersionQueryFallbackSummary, createStoreVersionQueryPlan, createStoreVersionQueryPreflight, createUpdateDiagnosticsText, fetchRemoteUpdateManifest, createVersionInfo, formatDataUpdateTime, getManifestUpdateStatus, getPrimaryReadyStoreLink, getStoreAvailabilitySummary, getUpdateManifestAvailabilitySummary, getUpdatePolicy, getUpdateReminderPreferenceSummary, getUpdateStatus, createUpdateManifestSource, normalizeStoreUrl, normalizeUpdateManifestUrl, parseRemoteUpdateManifest, parseStoreVersionQueryResult } from '../utils/updateInfo';
 
 describe('updateInfo helpers', () => {
   it('creates stable default version metadata', () => {
@@ -193,6 +193,48 @@ describe('updateInfo helpers', () => {
     expect(manifestOnlyPlan.order).toEqual(['manifest', 'local']);
     expect(parseStoreVersionQueryResult('appStore', { latestVersion: ' 1.0.2 ', minimumSupportedVersion: '1.0.0', level: 'recommended' })).toEqual(expect.objectContaining({ source: 'appStore', status: 'success', latestVersion: '1.0.2', level: 'recommended' }));
     expect(parseStoreVersionQueryResult('playStore', { latestVersion: '' })).toBeUndefined();
+  });
+
+  it('runs mock store version query adapters and falls back after failures', async () => {
+    const storeLinks = createStoreLinks({
+      VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo',
+      VITE_PLAY_STORE_URL: 'https://play.google.com/store/apps/details?id=app.expense',
+    });
+    const plan = createStoreVersionQueryPlan(createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: '' }), storeLinks);
+    const success = await fetchStoreVersionQueryPlan(plan, storeLinks, {
+      fetcher: async (url, init) => {
+        expect(url).toBe('https://apps.apple.com/app/expense-tracker-redo');
+        expect(init?.headers).toEqual({ Accept: 'application/json' });
+        return { ok: true, status: 200, json: async () => ({ latestVersion: '1.0.3', level: 'recommended' }) };
+      },
+    });
+
+    expect(success.result).toEqual(expect.objectContaining({ source: 'appStore', status: 'success', latestVersion: '1.0.3' }));
+    expect(success.attempts).toHaveLength(1);
+
+    const fallback = await fetchStoreVersionQueryPlan(plan, storeLinks, {
+      fetcher: async (url) => ({ ok: false, status: url.includes('apps.apple') ? 503 : 404, statusText: 'mock failure', json: async () => ({}) }),
+    });
+
+    expect(fallback.attempts.map((attempt) => attempt.source)).toEqual(['appStore', 'playStore', 'local']);
+    expect(fallback.attempts[0]).toEqual(expect.objectContaining({ status: 'error' }));
+    expect(fallback.result).toEqual(expect.objectContaining({ source: 'local', status: 'success', latestVersion: RELEASE_NOTES[0].version }));
+  });
+
+  it('uses manifest fallback when mock store adapters fail', async () => {
+    const storeLinks = createStoreLinks({ VITE_APP_STORE_URL: 'https://apps.apple.com/app/expense-tracker-redo', VITE_PLAY_STORE_URL: '' });
+    const manifestSource = createUpdateManifestSource({ VITE_UPDATE_MANIFEST_URL: 'https://example.com/update-manifest.json' });
+    const plan = createStoreVersionQueryPlan(manifestSource, storeLinks);
+    const manifestResult = await fetchRemoteUpdateManifest(manifestSource, { appVersion: '1.0.0' }, {
+      fetcher: async () => ({ ok: true, status: 200, json: async () => ({ latestVersion: '1.0.4', level: 'required' }) }),
+    });
+    const result = await fetchStoreVersionQueryPlan(plan, storeLinks, {
+      fetcher: async () => ({ ok: false, status: 500, statusText: 'mock failure', json: async () => ({}) }),
+      manifestResult,
+    });
+
+    expect(result.attempts.map((attempt) => attempt.source)).toEqual(['appStore', 'manifest']);
+    expect(result.result).toEqual(expect.objectContaining({ source: 'manifest', status: 'success', latestVersion: '1.0.4', level: 'required' }));
   });
 
   it('summarizes local backup context for safe migration copy', () => {

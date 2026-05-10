@@ -197,6 +197,11 @@ Settings 增加「檢查更新」。
 - 查詢優先序固定為商店來源 → 遠端 manifest → 本機 release notes。
 - Settings 更新檢查與更新診斷會顯示商店版本查詢優先序與 primary source。
 
+已落地（U21）：
+- 新增可注入 fetcher 的商店版本查詢 mock adapter。
+- 覆蓋 App Store mock 成功、商店失敗回落本機 release notes、商店失敗回落遠端 manifest。
+- 目前仍不接真實商店 API，先固定 adapter 合約與 fallback 行為。
+
 ### 7. 強制更新 / 建議更新
 定義更新等級：
 
