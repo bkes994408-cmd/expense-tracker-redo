@@ -1,5 +1,27 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U20）
+
+## 0) 本輪完成（Update Feature U20：正式商店版本查詢 adapter 設計）
+
+### U20. Store version query adapter design
+- `src/utils/updateInfo.ts`
+  - 新增 `StoreVersionQueryResult` 與 `StoreVersionQueryPlan` 型別。
+  - 新增 `parseStoreVersionQueryResult()`，先定義 App Store / Play Store 查詢 adapter 的標準輸出格式。
+  - 新增 `createStoreVersionQueryPlan()` 與 `createStoreVersionQueryFallbackSummary()`，明確定義查詢優先序：商店來源 → 遠端 manifest → 本機 release notes。
+  - 更新診斷文字會輸出 fallback 優先序與 primary source，方便後續接實際商店 API。
+- `src/pages/settings/SettingsPage.tsx`
+  - 「正式商店版本查詢前置檢查」區塊補上商店版本查詢優先序。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 adapter result parsing、fallback priority、診斷輸出與 UI 顯示測試。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 159 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U19）
 
 ## 0) 本輪完成（Update Feature U19：正式商店版本查詢前置檢查）

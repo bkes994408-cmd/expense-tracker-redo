@@ -69,6 +69,22 @@ export type UpdatePolicy = {
   message: string;
 };
 
+export type StoreVersionQueryResult = {
+  source: StoreTarget | 'manifest' | 'local';
+  status: 'not-configured' | 'success' | 'error';
+  latestVersion?: string;
+  minimumSupportedVersion?: string;
+  level?: Exclude<UpdateLevel, 'current'>;
+  summary: string;
+  errorMessage?: string;
+};
+
+export type StoreVersionQueryPlan = {
+  order: Array<StoreTarget | 'manifest' | 'local'>;
+  primarySource: StoreTarget | 'manifest' | 'local';
+  summary: string;
+};
+
 export type StoreVersionQueryPreflightCheck = { label: string; status: 'ready' | 'missing'; detail: string };
 
 export type StoreVersionQueryPreflight = {
@@ -84,6 +100,7 @@ export type UpdateDiagnosticsInput = {
   storeSummary: string;
   updateManifestSummary?: string;
   storeVersionQueryPreflight?: StoreVersionQueryPreflight;
+  storeVersionQueryPlan?: StoreVersionQueryPlan;
   backupStatusLabel: string;
   backupStatusDetail: string;
   categoryRuleVersion: string;
@@ -205,6 +222,56 @@ export function parseRemoteUpdateManifest(value: unknown): RemoteUpdateManifest 
   }
 
   return manifest;
+}
+
+export function parseStoreVersionQueryResult(source: StoreTarget, value: unknown): StoreVersionQueryResult | undefined {
+  if (!isRecord(value) || !isNonEmptyString(value.latestVersion)) return undefined;
+
+  const result: StoreVersionQueryResult = {
+    source,
+    status: 'success',
+    latestVersion: value.latestVersion.trim(),
+    summary: `${source === 'appStore' ? 'App Store' : 'Play Store'} 查詢成功：最新版本 ${value.latestVersion.trim()}。`,
+  };
+
+  if (value.minimumSupportedVersion !== undefined) {
+    if (!isNonEmptyString(value.minimumSupportedVersion)) return undefined;
+    result.minimumSupportedVersion = value.minimumSupportedVersion.trim();
+  }
+
+  if (value.level !== undefined) {
+    if (!isRemoteUpdateLevel(value.level)) return undefined;
+    result.level = value.level;
+  }
+
+  return result;
+}
+
+export function createStoreVersionQueryPlan(source = createUpdateManifestSource(), storeLinks = STORE_LINKS): StoreVersionQueryPlan {
+  const readyStoreSources = storeLinks.filter((link) => link.status === 'ready' && link.url).map((link) => link.target);
+  const order: StoreVersionQueryPlan['order'] = [
+    ...readyStoreSources,
+    ...(source.status === 'ready' ? ['manifest' as const] : []),
+    'local',
+  ];
+  const primarySource = order[0] ?? 'local';
+  const summary = primarySource === 'local'
+    ? '目前沒有可用的正式商店查詢來源，會使用本機 release notes。'
+    : primarySource === 'manifest'
+      ? '正式商店查詢尚未就緒，會先使用遠端 manifest，再回落本機 release notes。'
+      : `正式商店查詢優先使用 ${primarySource === 'appStore' ? 'App Store' : 'Play Store'}，失敗後依序回落遠端 manifest / 本機 release notes。`;
+
+  return { order, primarySource, summary };
+}
+
+export function createStoreVersionQueryFallbackSummary(plan: StoreVersionQueryPlan): string {
+  const labels: Record<StoreVersionQueryPlan['order'][number], string> = {
+    appStore: 'App Store',
+    playStore: 'Play Store',
+    manifest: '遠端 manifest',
+    local: '本機 release notes',
+  };
+  return `版本查詢優先序：${plan.order.map((source) => labels[source]).join(' → ')}。`;
 }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
@@ -577,7 +644,7 @@ export function createLocalBackupSummary(versionInfo: VersionInfo): string {
 }
 
 export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): string {
-  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, storeVersionQueryPreflight, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
+  const { versionInfo, updateStatus, updatePolicy, storeSummary, updateManifestSummary, storeVersionQueryPreflight, storeVersionQueryPlan, backupStatusLabel, backupStatusDetail, categoryRuleVersion, noteSuggestionRuleVersion } = input;
 
   return [
     'Expense Tracker Redo 更新診斷',
@@ -595,6 +662,8 @@ export function createUpdateDiagnosticsText(input: UpdateDiagnosticsInput): stri
     `Update manifest: ${updateManifestSummary ?? 'local release notes only'}`,
     `Store query preflight: ${storeVersionQueryPreflight?.summary ?? 'not checked'}`,
     ...(storeVersionQueryPreflight?.checks.map((check) => `- ${check.label}: ${check.status} — ${check.detail}`) ?? []),
+    `Store query fallback: ${storeVersionQueryPlan ? createStoreVersionQueryFallbackSummary(storeVersionQueryPlan) : 'not planned'}`,
+    ...(storeVersionQueryPlan ? [`Store query primary source: ${storeVersionQueryPlan.primarySource}`] : []),
     `Recovery point: ${backupStatusLabel}`,
     `Recovery detail: ${backupStatusDetail}`,
     `Category rule version: ${categoryRuleVersion}`,

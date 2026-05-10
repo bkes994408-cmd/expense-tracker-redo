@@ -75,10 +75,10 @@
 
 ## 路線 C，更新功能後續（U6+）
 
-U1～U19 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心、匯率口徑準備、商店連結設定、遠端更新 manifest 基礎、遠端 manifest 查詢/fallback、required update 主要操作保護流程、optional/recommended 更新提醒與略過 baseline、Settings 更新入口狀態 badge、recommended 稍後提醒到期判斷、更新提醒清除/重新設定流程、提醒到期後一鍵再延後 24 小時，以及正式商店版本查詢前置檢查。
+U1～U20 已完成版本資訊、migration registry、本機復原點、檢查更新 UX、分類/備註規則版本化、更新診斷匯出、主動重新套用分類規則、同步狀態中心、匯率口徑準備、商店連結設定、遠端更新 manifest 基礎、遠端 manifest 查詢/fallback、required update 主要操作保護流程、optional/recommended 更新提醒與略過 baseline、Settings 更新入口狀態 badge、recommended 稍後提醒到期判斷、更新提醒清除/重新設定流程、提醒到期後一鍵再延後 24 小時、正式商店版本查詢前置檢查，以及正式商店版本查詢 adapter 型別與 fallback 優先序。
 
 建議後續：
-1. U20：正式 App Store / Play Store 版本查詢 adapter 設計，先定義查詢結果型別與 fallback 優先序。
+1. U21：正式 App Store / Play Store 版本查詢 mock adapter，先以可注入 fetcher 覆蓋成功/失敗與 fallback。
 2. 接入正式 App Store / Play Store 版本查詢；商店連結已可用 `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` 設定，遠端版本 manifest 已可查詢並具備 fallback。
 3. 若要啟用真正匯率換算，需補匯率來源、缺值 fallback 與歷史匯率測試。
 3. 補更接近真機的 iOS / Android QA 驗證與截圖素材流程。
