@@ -464,7 +464,13 @@ export function getUpdateReminderPreferenceSummary(preference: UpdateReminderPre
   return `已設定稍後提醒版本 ${preference.version}${preference.remindAfter ? `，提醒時間 ${preference.remindAfter}` : ''}。`;
 }
 
-export function createUpdateReminderBadge(preference: UpdateReminderPreference | null | undefined, currentVersion?: string): UpdateReminderBadge {
+export function isUpdateReminderDue(preference: UpdateReminderPreference | null | undefined, now = new Date()): boolean {
+  if (!preference || preference.action !== 'remind-later' || !preference.remindAfter) return false;
+  const remindAt = new Date(preference.remindAfter).getTime();
+  return Number.isFinite(remindAt) && remindAt <= now.getTime();
+}
+
+export function createUpdateReminderBadge(preference: UpdateReminderPreference | null | undefined, currentVersion?: string, now = new Date()): UpdateReminderBadge {
   if (!preference) {
     return { label: '未設定提醒', detail: '尚未稍後提醒或略過版本。', tone: 'neutral' };
   }
@@ -476,6 +482,14 @@ export function createUpdateReminderBadge(preference: UpdateReminderPreference |
 
   if (preference.action === 'skip-version') {
     return { label: `已略過 v${preference.version}`, detail: '這個版本不再主動提醒，下個版本仍會提醒。', tone: 'neutral' };
+  }
+
+  if (isUpdateReminderDue(preference, now)) {
+    return {
+      label: '提醒到期',
+      detail: `版本 ${preference.version} 的稍後提醒已到期，建議重新檢查更新。`,
+      tone: 'warn',
+    };
   }
 
   return {

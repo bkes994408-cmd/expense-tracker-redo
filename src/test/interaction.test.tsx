@@ -799,6 +799,54 @@ describe('interaction', () => {
     expect(onRateApp).toHaveBeenCalled();
   });
 
+  it('SettingsPage 會在 recommended 稍後提醒到期後顯示提醒到期 badge', () => {
+    const storage = new Map<string, string>([
+      ['expense-tracker-redo-update-reminder', JSON.stringify({
+        action: 'remind-later',
+        version: '1.0.2',
+        updatedAt: '2026-05-09T00:00:00.000Z',
+        remindAfter: '2026-05-09T01:00:00.000Z',
+      })],
+    ]);
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+      configurable: true,
+    });
+
+    render(
+      <SettingsPage
+        t={t}
+        r={r}
+        f={f}
+        style="minimal"
+        setStyle={vi.fn()}
+        mode="light"
+        setMode={vi.fn()}
+        currency="NTD"
+        setCurrency={vi.fn()}
+        monthStartDay={1}
+        setMonthStartDay={vi.fn()}
+        billReminder
+        setBillReminder={vi.fn()}
+        iCloudBackup={false}
+        setICloudBackup={vi.fn()}
+        exportCategories={['餐飲']}
+        getCsvExportCount={() => 1}
+        onExportCsv={vi.fn()}
+        onClearAllData={vi.fn()}
+        onRateApp={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('更新入口狀態')).toHaveTextContent('提醒到期');
+    fireEvent.click(screen.getByText('檢查更新'));
+    expect(screen.getByLabelText('更新提醒狀態')).toHaveTextContent('入口狀態：提醒到期');
+  });
+
   it('SettingsPage 對 optional 更新可略過此版本並保留下版提醒', async () => {
     vi.useRealTimers();
     vi.stubEnv('VITE_UPDATE_MANIFEST_URL', 'https://example.com/update-manifest.json');

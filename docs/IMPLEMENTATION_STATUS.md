@@ -1,5 +1,26 @@
 # IMPLEMENTATION_STATUS
 
+最後更新：2026-05-10（更新功能 U16）
+
+## 0) 本輪完成（Update Feature U16：更新提醒到期判斷）
+
+### U16. Update reminder due status
+- `src/utils/updateInfo.ts`
+  - 新增 `isUpdateReminderDue()`，判斷 recommended 稍後提醒是否已到期。
+  - `createUpdateReminderBadge()` 現在會把已到期的 remind-later preference 顯示為「提醒到期」warn 狀態。
+- `src/pages/settings/SettingsPage.tsx`
+  - 既有「檢查更新」入口 badge 會直接呈現提醒到期狀態。
+  - 檢查更新彈窗中的「更新提醒狀態」同步顯示提醒到期 detail。
+- `src/test/updateInfo.test.ts`、`src/test/interaction.test.tsx`
+  - 補 helper 與 Settings UI 測試，覆蓋 recommended 稍後提醒到期後重新浮現的路徑。
+
+### 驗證
+- `npm run release:check` ✅ overall pass
+  - `npm run test` ✅ 23 files / 157 tests passed
+  - `npm run build` ✅ passed
+  - `npm run test:e2e:smoke` ✅ 1 passed
+- `npm run lint` ✅ passed
+
 最後更新：2026-05-10（更新功能 U15）
 
 ## 0) 本輪完成（Update Feature U15：更新提醒入口狀態 badge）
